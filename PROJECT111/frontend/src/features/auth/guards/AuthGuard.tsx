@@ -7,7 +7,7 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const isAuthenticated = useAuth();
+  const { isAuthenticated } = useAuth(); // 수정: 객체 구조 분해 할당 사용
   const location = useLocation();
 
   if (!isAuthenticated) {

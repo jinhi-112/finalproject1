@@ -10,10 +10,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = Users
         fields = ('email', 'password', 'name')
 
+    # def create(self, validated_data):
+    #     password = validated_data.pop('password')
+    #     validated_data['password_hash'] = make_password(password)
+    #     user = Users.objects.create(**validated_data)
+    #     return user
+    
+    # 모델의 비밀번호 필드명이 'password'일 경우
     def create(self, validated_data):
-        password = validated_data.pop('password')
-        validated_data['password_hash'] = make_password(password)
-        user = Users.objects.create(**validated_data)
+    # validated_data에 있는 'password'를 자동으로 해싱하여 저장
+        user = Users.objects.create_user(**validated_data) 
         return user
 
 # (참고: Users 모델의 상세 정보가 필요하다면 UsersSerializer도 정의할 수 있습니다.)
@@ -70,3 +76,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # 프로필이 한 번이라도 업데이트되면 is_profile_complete를 True로 설정
         validated_data['is_profile_complete'] = True
         return super().update(instance, validated_data)
+    

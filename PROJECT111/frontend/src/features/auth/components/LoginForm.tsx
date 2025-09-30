@@ -8,23 +8,7 @@ import { Label } from "../../../shared/components/Label";
 import { ErrorMessage } from "./ErrorMessage";
 import { Button } from "../../../shared/components/Button";
 import { useAuth } from "../../../shared/contexts/AuthContext"; // New import
-
-// Helper to get CSRF token from cookies
-function getCookie(name: string) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      // Does this cookie string begin with the name we want?
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
+import axios from "axios";
 
 const schema = yup.object().shape({
   email: yup.string().email("이메일 형식이 아닙니다.").required("필수 입력"),
@@ -36,7 +20,6 @@ export function LoginForm() {
     resolver: yupResolver(schema),
   });
   const [loginError, setLoginError] = useState("");
-  const [loginSuccess, setLoginSuccess] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth(); // Use auth context
 
@@ -44,32 +27,24 @@ export function LoginForm() {
     setLoginError("");
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: data.email, password: data.password }),
+      const response = await axios.post('http://127.0.0.1:8000/api/login/', {
+        username: data.email,
+        password: data.password
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        setLoginError(errorData.error || "이메일 또는 비밀번호가 올바르지 않습니다.");
-        return;
-      }
-
       // 로그인 성공
-      const responseData = await response.json();
-      alert(responseData.message); // "로그인 완료" 알림창 띄우기
+      alert(response.data.message); // "로그인 완료" 알림창 띄우기
 
       // AuthContext에 백엔드로부터 받은 실제 사용자 정보 저장
-      login(responseData.user);
+      login(response.data.user);
 
       navigate("/"); // 메인 페이지로 이동
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
-      setLoginError("로그인 중 오류가 발생했습니다.");
+      const errorMessage = error.response?.data?.error || "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.";
+      setLoginError(errorMessage);
+      alert(errorMessage); // 명확한 알림창 추가
     }
   };
 
@@ -92,7 +67,6 @@ export function LoginForm() {
       />
       <ErrorMessage>{errors.password?.message}</ErrorMessage>
       {loginError && <ErrorMessage>{loginError}</ErrorMessage>} {/* Display error if exists */}
-      {loginSuccess && <p className="text-green-600 text-sm mt-2">{loginSuccess}</p>} {/* Display success message */}
       <div className="flex justify-between gap-2 mt-4">
         <Button variant="outline" size="lg" onClick={handleCancel}>취소</Button>
         <Button type="submit" size="lg">로그인</Button>

@@ -11,6 +11,15 @@ import { ProjectDetailPage } from "./features/projects/pages/ProjectDetailPage";
 import { ProjectRegisterPage } from "./features/projects/pages/ProjectRegisterPage";
 import { Button } from "./shared/components/Button";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
+import axios from 'axios';
+
+// ----------------------------------------------------------------
+// ⭐️ API 클라이언트 설정 (중앙 관리)
+// ----------------------------------------------------------------
+const apiClient = axios.create({
+  baseURL: 'http://127.0.0.1:8000',
+  withCredentials: true, // 모든 요청에 쿠키를 포함시킵니다.
+});
 
 // API로부터 받아올 프로젝트 데이터의 타입을 정의합니다.
 interface Project {
@@ -18,29 +27,13 @@ interface Project {
   title: string;
   description: string;
   tech_stack: string;
-  // 필요에 따라 다른 필드들도 추가할 수 있습니다。
+  // 필요에 따라 다른 필드들도 추가할 수 있습니다.
 }
 
 const ProfileCompletionBanner = () => {
   const { user } = useAuth();
-  const [isProfileComplete, setIsProfileComplete] = useState(true);
 
-  useEffect(() => {
-    const checkProfile = async () => {
-      if (user) {
-        try {
-          const response = await fetch('/api/user-info/');
-          const data = await response.json();
-          setIsProfileComplete(data.is_profile_complete);
-        } catch (error) {
-          console.error("Failed to check profile completion status", error);
-        }
-      }
-    };
-    checkProfile();
-  }, [user]);
-
-  if (user && !isProfileComplete) {
+  if (user && !user.is_profile_complete) {
     return (
       <div className="bg-yellow-200 text-center p-2">
         <p>매칭을 위해선 더 많은 정보를 입력해주셔야 합니다. <Link to="/user-info" className="underline font-bold">정보 입력하기</Link></p>
@@ -51,41 +44,44 @@ const ProfileCompletionBanner = () => {
   return null;
 };
 
-// 메인 페이지 컴포넌트
+// ----------------------------------------------------------------
+// ⭐️ 메인 페이지 컴포넌트 (수정된 부분)
+// ----------------------------------------------------------------
 function MainPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true); // 로딩 상태 추가
 
-  // useEffect(() => {
-  //   // 백엔드 API를 호출하는 함수
-  //   const fetchProjects = async () => {
-  //     try {
-  //       // Django 서버의 API 엔드포인트로 요청을 보냅니다.
-  //       const response = await fetch('http://127.0.0.1:8000/api/projects/');
+  useEffect(() => {
+    // 백엔드 API를 호출하는 함수
+    const fetchProjects = async () => {
+      try {
+        setLoading(true); // 데이터 요청 시작 시 로딩 상태를 true로 설정
+        const response = await apiClient.get('/api/projects/');
         
-  //       if (!response.ok) {
-  //         // 응답이 성공적이지 않은 경우 에러를 발생시킵니다.
-  //         throw new Error(`HTTP error! status: ${response.status}`);
-  //       }
+        // Django REST Framework의 페이지네이션 응답을 고려하여
+        // 실제 데이터는 'results' 키에 있을 수 있습니다.
+        // 'results'가 없으면 data 자체를 사용합니다.
+        setProjects(response.data.results || response.data); 
         
-  //       const data = await response.json();
-        
-  //       // `views.py`에서 정의한 커스텀 응답 형식에 맞춰 데이터를 추출합니다.
-  //       setProjects(data); 
-        
-  //     } catch (e) {
-  //       if (e instanceof Error) {
-  //         console.error("API 호출 중 에러 발생:", e.message);
-  //         setError(`데이터를 불러오는 데 실패했습니다: ${e.message}`);
-  //       }
-  //     }
-  //   };
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "알 수 없는 에러가 발생했습니다.";
+        console.error("API 호출 중 에러 발생:", errorMessage);
+        setError(`데이터를 불러오는 데 실패했습니다: ${errorMessage}`);
+      } finally {
+        setLoading(false); // 요청 완료 시 (성공/실패 모두) 로딩 상태를 false로 설정
+      }
+    };
 
-  //   fetchProjects();
-  // }, []); // 빈 배열을 전달하여 컴포넌트가 처음 마운트될 때 한 번만 실행되도록 합니다.
+    fetchProjects();
+  }, []); // 컴포넌트가 처음 마운트될 때 한 번만 실행되도록 합니다.
+
+  if (loading) {
+    return <div className="text-center p-10">프로젝트 목록을 불러오는 중...</div>;
+  }
 
   if (error) {
-    return <div>{error}</div>;
+    return <div className="text-center p-10 text-red-500">{error}</div>;
   }
 
   return (
@@ -124,7 +120,7 @@ function MainPage() {
             ))}
           </div>
         ) : (
-          <p>프로젝트가 없습니다. 백엔드 서버를 실행하고 데이터를 추가해보세요.</p>
+          <p className="text-center text-gray-500">표시할 프로젝트가 없습니다.</p>
         )}
       </section>
     </div>
@@ -136,27 +132,27 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-      <div className="relative flex flex-col h-screen">
-        <Header />
-        <ProfileCompletionBanner /> {/* 배너 추가 */}
-        <Body>
-          <Routes>
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/user-info" element={
-              <AuthGuard>
-                <UserInformationPage />
-              </AuthGuard>
-            } />
-            <Route path="/" element={<MainPage />} />
-            <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-            <Route path="/register-project" element={
-              <AuthGuard>
-                <ProjectRegisterPage />
-              </AuthGuard>
-            } />
-          </Routes>
-        </Body>
+        <div className="relative flex flex-col h-screen">
+          <Header />
+          <ProfileCompletionBanner />
+          <Body>
+            <Routes>
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/user-info" element={
+                <AuthGuard>
+                  <UserInformationPage />
+                </AuthGuard>
+              } />
+              <Route path="/" element={<MainPage />} />
+              <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+              <Route path="/register-project" element={
+                <AuthGuard>
+                  <ProjectRegisterPage />
+                </AuthGuard>
+              } />
+            </Routes>
+          </Body>
         </div>
       </BrowserRouter>
     </AuthProvider>

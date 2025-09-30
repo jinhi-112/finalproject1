@@ -1,10 +1,11 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import axios from 'axios';
 
-// 백엔드의 UsersSerializer 필드와 일치시킴
 interface User {
   user_id: number;
   email: string;
   name: string;
+  is_profile_complete: boolean;
 }
 
 interface AuthContextType {
@@ -17,27 +18,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const storedUser = localStorage.getItem('user');
-    return !!storedUser;
-  });
-  const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  const checkAuth = async () => {
+    try {
+      const response = await axios.get('http://127.0.0.1:8000/api/user-info/');
+      if (response.status === 200 && response.data) {
+        setUser(response.data);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   const login = (userData: User) => {
-    setIsAuthenticated(true);
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
-    localStorage.removeItem('user');
-    // 로그아웃 시 세션 쿠키도 만료시키기 위해 백엔드에 요청을 보낼 수 있습니다.
-    // fetch('/api/logout/', { method: 'POST' }); 
+    axios.post('http://127.0.0.1:8000/api/logout/')
+      .finally(() => {
+        setUser(null);
+        setIsAuthenticated(false);
+      });
   };
 
   return (
