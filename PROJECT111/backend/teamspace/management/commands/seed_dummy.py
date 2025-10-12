@@ -30,6 +30,17 @@ TEAM_ROLES = ["Leader", "Backend", "Frontend", "Designer", "Planner", "Data"]
 
 fake = Faker("ko_KR")
 
+PROJECT_TOPICS = ["AI 면접 솔루션", "맛집 추천 및 예약", "여행 계획 공유", "스터디 그룹 매칭", "반려동물 산책 동반", "중고 거래 플랫폼", "개인 포트폴리오 웹사이트", "온라인 투표 시스템", "뉴스레터 구독 서비스"]
+ROLES_NEEDED = {
+    "프론트엔드 개발자": [1, 2, 3],
+    "백엔드 개발자": [1, 2],
+    "UI/UX 디자이너": [1],
+    "AI 모델러": [1, 2],
+    "iOS 앱 개발자": [1, 2],
+    "Android 앱 개발자": [1, 2]
+}
+PROJECT_DURATIONS = ["1개월", "2개월", "3개월", "6개월"]
+
 
 # ---------------------------------
 # 헬퍼 함수 (클래스 밖)
@@ -181,7 +192,7 @@ class Command(BaseCommand):
             cur,
             """
             INSERT INTO Users (
-                name, birthdate, email, password_hash, introduction, created_at,
+                name, birthdate, email, password, introduction, created_at,
                 available_region, github_url, portfolio_url,
                 major, specialty, tech_stack, collaboration_tools,
                 experience_level, collaboration_style, meeting_frequency,
@@ -221,13 +232,30 @@ class Command(BaseCommand):
         now = timezone.now()
         for _ in range(n_projects):
             creator = random.choice(user_ids)
-            title = fake.sentence(nb_words=4).rstrip(".")
-            desc = fake.paragraph(nb_sentences=3)
-            goal = fake.sentence(nb_words=8)
-            req_count = random.randint(1, 5)
-            required_ids = random.sample(skill_ids, req_count)
+            
+            # --- 테마 기반 텍스트 생성 ---
+            topic = random.choice(PROJECT_TOPICS)
+            
+            # 1. 제목 생성
+            title = f"{topic} 프로젝트 함께하실 분 구합니다!"
 
-            # skill names로 tech_stack 문자열 구성
+            # 2. 설명 생성 (필요 역할)
+            num_roles_to_recruit = random.randint(2, 4)
+            recruiting_roles = random.sample(list(ROLES_NEEDED.keys()), num_roles_to_recruit)
+            role_strings = []
+            for role in recruiting_roles:
+                num_needed = random.choice(ROLES_NEEDED[role])
+                role_strings.append(f"{role} {num_needed}명")
+            my_role = random.choice(["PM", "리드 개발자"])
+            desc = f"현재 저희 팀은 {', '.join(role_strings)}을(를) 모집하고 있습니다. 저는 {my_role} 역할을 맡아 프로젝트를 이끌 예정입니다. 함께 성장하며 멋진 서비스를 만들어봐요!"
+
+            # 3. 목표 생성
+            duration = random.choice(PROJECT_DURATIONS)
+            goal = f"총 프로젝트 기간은 {duration}으로 예상하며, 기간 내 MVP 출시를 목표로 합니다."
+            
+            # 4. 기술 스택 생성
+            req_count = random.randint(2, 5)
+            required_ids = random.sample(skill_ids, req_count)
             cur.execute(
                 "SELECT name FROM Skills WHERE skill_id IN (" + ",".join(["%s"] * len(required_ids)) + ")",
                 required_ids

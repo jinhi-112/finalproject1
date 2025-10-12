@@ -1,29 +1,31 @@
 from django.contrib.auth.backends import BaseBackend
-from django.contrib.auth.hashers import check_password
-from .models import Users
+from .models import User
+import logging
 
-class CustomUserBackend(BaseBackend):
-    def authenticate(self, request, username=None, password=None, **kwargs):
+logger = logging.getLogger(__name__)
+
+class EmailBackend(BaseBackend):
+    def authenticate(self, request, email=None, password=None, **kwargs):
+        logger.info(f"--- 인증 시도: 이메일 = {email} ---")
+        if not email:
+            logger.warning("이메일이 제공되지 않아 인증을 중단합니다.")
+            return None
         try:
-            user = Users.objects.get(email=username) # Use email as the username
-            if check_password(password, user.password_hash):
-                # Django의 인증 시스템이 기대하는 속성들을 Users 객체에 동적으로 추가
-                user.is_authenticated = True
-                user.is_active = True # 사용자가 활성 상태라고 가정
-                user.pk = user.user_id # Django는 pk 속성을 기대합니다.
-                user.get_session_auth_hash = lambda: user.password_hash # 세션 해시를 위한 간단한 구현
+            user = User.objects.get(email=email)
+            logger.info(f"사용자를 찾았습니다: {user.email}")
+            
+            if user.check_password(password):
+                logger.info(f"비밀번호 일치. {user.email} 사용자가 인증되었습니다.")
                 return user
-        except Users.DoesNotExist:
+            else:
+                logger.warning(f"비밀번호가 일치하지 않습니다: {user.email}")
+                return None
+        except User.DoesNotExist:
+            logger.warning(f"해당 이메일을 가진 사용자가 존재하지 않습니다: {email}")
             return None
 
     def get_user(self, user_id):
         try:
-            user = Users.objects.get(pk=user_id)
-            # get_user에서도 필수 속성들을 추가
-            user.is_authenticated = True
-            user.is_active = True
-            user.pk = user.user_id
-            user.get_session_auth_hash = lambda: user.password_hash
-            return user
-        except Users.DoesNotExist:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
             return None

@@ -1,31 +1,23 @@
 from rest_framework import serializers
-from django.contrib.auth.hashers import make_password # 비밀번호 해싱을 위해 임포트
-from .models import Users, Projects 
+from django.contrib.auth.hashers import make_password
+from .models import User, Projects
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    name = serializers.CharField(max_length=50)
 
     class Meta:
-        model = Users
+        model = User
         fields = ('email', 'password', 'name')
 
-    # def create(self, validated_data):
-    #     password = validated_data.pop('password')
-    #     validated_data['password_hash'] = make_password(password)
-    #     user = Users.objects.create(**validated_data)
-    #     return user
-    
-    # 모델의 비밀번호 필드명이 'password'일 경우
     def create(self, validated_data):
-    # validated_data에 있는 'password'를 자동으로 해싱하여 저장
-        user = Users.objects.create_user(**validated_data) 
+        # Use the new custom manager's create_user method which handles hashing
+        user = User.objects.create_user(**validated_data)
         return user
 
 # (참고: Users 모델의 상세 정보가 필요하다면 UsersSerializer도 정의할 수 있습니다.)
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Users
+        model = User
         # 프로젝트 생성자의 이름과 ID만 필요하다고 가정
         fields = ['user_id', 'name', 'email']
         read_only_fields = ['user_id', 'name', 'email']
@@ -62,7 +54,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Users
+        model = User
         fields = [
             'name', 'birthdate', 'email', 'available_region', 'github_url', 
             'portfolio_url', 'introduction', 'major', 'specialty', 'tech_stack',
@@ -76,4 +68,3 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # 프로필이 한 번이라도 업데이트되면 is_profile_complete를 True로 설정
         validated_data['is_profile_complete'] = True
         return super().update(instance, validated_data)
-    

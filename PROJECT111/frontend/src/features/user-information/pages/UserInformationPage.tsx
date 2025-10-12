@@ -1,25 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Button } from '../../../shared/components/Button';
-import { Input } from '../../../shared/components/Input';
-import { Label } from '../../../shared/components/Label';
-import { useAuth } from '../../../shared/contexts/AuthContext';
-import axios from 'axios';
-
-function getCookie(name: string) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
+import { Button } from '@/shared/components/Button'; // 경로 별칭 사용
+import { Input } from '@/shared/components/Input';   // 경로 별칭 사용
+import { Label } from '@/shared/components/Label';   // 경로 별칭 사용
+import { useAuth } from '@/shared/contexts/AuthContext'; // 경로 별칭 사용
+import apiClient from '@/api'; // ⭐️ 중요: axios 대신 apiClient를 사용합니다.
 
 // --- 데이터 상수 --- //
 const REGION_OPTIONS = [{ value: 'SEOUL', label: '수도권' }, { value: 'CHUNGCHEONG', label: '충청권' }, { value: 'YEONGNAM', label: '영남권' }, { value: 'HONAM', label: '호남권' }, { value: 'ETC', label: '기타' }];
@@ -45,19 +30,14 @@ const TEAM_SIZE_OPTIONS = [ { value: 'SMALL', label: '2~3명' }, { value: 'MEDIU
 const PROJECT_TOPIC_OPTIONS = [ { value: 'web', label: '웹 서비스' }, { value: 'app', label: '앱 개발' }, { value: 'ai', label: '인공지능' }, { value: 'chatbot', label: '챗봇' }, { value: 'social', label: '소셜 미디어' }, { value: 'community', label: '커뮤니티' }, { value: 'healthcare', label: '헬스케어' }, { value: 'education', label: '교육' }, { value: 'finance', label: '금융' }, { value: 'other', label: '기타' } ];
 const AVAILABILITY_PERIOD_OPTIONS = [ { value: 'SHORT', label: '단기: 1달 이내' }, { value: 'MEDIUM', label: '중기: 2~3달' }, { value: 'LONG', label: '장기: 3달 이상/기타' } ];
 
-// --- API 통신 함수 --- //
+// --- API 통신 함수 (apiClient 사용으로 수정) --- //
 const fetchUserInfo = async () => {
-  const response = await axios.get('http://127.0.0.1:8000/api/user-info/');
+  const response = await apiClient.get('/user-info/');
   return response.data;
 };
 
 const updateUserInfo = async (data: any) => {
-  const csrftoken = getCookie('csrftoken');
-  const response = await axios.put('http://127.0.0.1:8000/api/user-info/', data, {
-    headers: {
-      'X-CSRFToken': csrftoken || '',
-    },
-  });
+  const response = await apiClient.put('/user-info/', data);
   return response.data;
 };
 
@@ -79,6 +59,9 @@ const FormField = ({ label, children }: { label: string, children: React.ReactNo
 // --- 섹션별 컴포넌트 --- //
 const BasicInfoSection = ({ register, control }: { register: any, control: any }) => (
     <Section title="기본 정보 입력">
+        <FormField label="이름 (필수)">
+            <Input {...register('name', { required: true })} placeholder="이름을 입력하세요" />
+        </FormField>
         <FormField label="활동 가능 지역 (필수)">
             <Controller name="available_region" control={control} render={({ field }) => (
                 <div className="flex gap-4 flex-wrap">
@@ -222,10 +205,9 @@ const ProjectPreferencesSection = ({ register, control }: { register: any, contr
 
 // --- 메인 페이지 컴포넌트 --- //
 export function UserInformationPage() {
-  // ⭐️⭐️⭐️ 수정된 부분 ⭐️⭐️⭐️
-  // useForm을 defaultValues와 함께 초기화하여 모든 필드를 제어 컴포넌트로 만듭니다.
   const { register, handleSubmit, reset, control } = useForm({
     defaultValues: {
+      name: '',
       available_region: [],
       github_url: '',
       portfolio_url: '',
@@ -246,7 +228,9 @@ export function UserInformationPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    // ⭐️ 중요: API를 호출하기 전에 사용자(user)와 토큰(authToken)이 모두 준비되었는지 확인합니다.
+    const token = localStorage.getItem('authToken');
+    if (user && token) {
       const loadUserInfo = async () => {
         try {
           const userInfo = await fetchUserInfo();
@@ -260,7 +244,8 @@ export function UserInformationPage() {
           };
           reset(transformedInfo);
         } catch (error) {
-          console.error(error);
+          console.error("사용자 정보 로딩 중 에러:", error);
+          // 사용자에게 피드백을 주는 alert는 유지하되, 개발자용 console.error를 더 자세하게 남깁니다.
           alert('사용자 정보를 불러오는 데 실패했습니다.');
         }
       };
@@ -270,7 +255,6 @@ export function UserInformationPage() {
 
   const onSubmit = async (data: any) => {
     try {
-      // 1. 저장용 데이터 변환 (배열 -> 문자열)
       const transformedData = {
           ...data,
           available_region: data.available_region?.join(','),
@@ -280,14 +264,10 @@ export function UserInformationPage() {
           preferred_project_topics: data.preferred_project_topics?.join(','),
       };
       
-      // 2. 데이터 저장
       await updateUserInfo(transformedData);
       alert('정보가 성공적으로 저장되었습니다.');
 
-      // 3. 저장된 최신 정보 다시 불러오기
       const latestUserInfo = await fetchUserInfo();
-
-      // 4. 화면 표시용 데이터 변환 (문자열 -> 배열)
       const transformedForDisplay = {
           ...latestUserInfo,
           available_region: latestUserInfo.available_region?.split(',') || [],
@@ -296,13 +276,12 @@ export function UserInformationPage() {
           collaboration_tools: latestUserInfo.collaboration_tools?.split(',') || [],
           preferred_project_topics: latestUserInfo.preferred_project_topics?.split(',') || [],
       };
-
-      // 5. 폼을 최신 정보로 갱신
       reset(transformedForDisplay);
 
-    } catch (error) {
-      console.error(error);
-      alert(`정보 저장에 실패했습니다: ${error.message}`);
+    } catch (error: any) {
+      console.error("정보 저장 중 에러:", error.response?.data || error);
+      const errorDetails = JSON.stringify(error.response?.data, null, 2);
+      alert(`정보 저장에 실패했습니다. 서버 응답:\n${errorDetails}`);
     }
   };
 

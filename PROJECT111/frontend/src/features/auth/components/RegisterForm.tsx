@@ -8,6 +8,7 @@ import { Label } from "../../../shared/components/Label";
 import { ErrorMessage } from "./ErrorMessage";
 import { Button } from "../../../shared/components/Button";
 import { Modal } from '../../../shared/components/Modal'; // New import
+import apiClient from '../../../api';
 
 const schema = yup.object().shape({
   email: yup.string().email("이메일 형식이 아닙니다.").required("필수 입력"),
@@ -66,20 +67,17 @@ export function RegisterForm() {
     }
     // const hashedPassword = bcrypt.hashSync(data.password, 10);
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/register/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          name: data.nickname,
-        }),
+      await apiClient.post('/register/', {
+        email: data.email,
+        password: data.password,
+        name: data.nickname,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      setShowSuccessModal(true); // Show modal on success
+    } catch (error: any) {
+      console.error("Registration failed:", error);
+      const errorData = error.response?.data;
+      if (errorData) {
         // Handle specific error messages from backend if any
         if (errorData.username) {
           setEmailError(errorData.username[0]);
@@ -93,13 +91,9 @@ export function RegisterForm() {
           // Generic error
           alert(errorData.detail || "회원가입 중 오류가 발생했습니다.");
         }
-        return;
+      } else {
+        alert("회원가입 중 네트워크 오류가 발생했습니다.");
       }
-
-      setShowSuccessModal(true); // Show modal on success
-    } catch (error) {
-      console.error("Registration failed:", error);
-      alert("회원가입 중 네트워크 오류가 발생했습니다.");
     }
   };
 

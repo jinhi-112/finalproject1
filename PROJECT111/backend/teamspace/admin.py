@@ -1,11 +1,11 @@
 from django.contrib import admin
 from .models import (
-    Users, Projects, Skills, UserSkills,
+    User, Projects, Skills, UserSkills,
     Teams, TeamMembers, MatchScores,
     Evaluations, Portfolios
 )
 
-admin.site.register(Users)
+admin.site.register(User)
 admin.site.register(Projects)
 admin.site.register(Skills)
 admin.site.register(UserSkills)

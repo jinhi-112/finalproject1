@@ -1,7 +1,5 @@
 from django.http import JsonResponse
-from django.contrib.auth import authenticate, login, logout
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth import authenticate
 from rest_framework.generics import ListAPIView
 from .models import Projects
 from .serializers import ProjectSerializer
@@ -10,10 +8,11 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import RetrieveUpdateAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Projects, Users, ProjectEmbedding, UserEmbedding
+from .models import Projects, User, ProjectEmbedding, UserEmbedding
 from .ai_services import calculate_similarity
 from .serializers import (
     UsersSerializer,
@@ -25,42 +24,38 @@ import logging
 logger = logging.getLogger(__name__)
 
 # ----------------------
-# CSRF
-# ----------------------
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class GetCSRFToken(APIView):
-    def get(self, request, *args, **kwargs):
-        return Response({'success': 'CSRF cookie set'})
-
-# ----------------------
 # 로그인 / 로그아웃 / 회원가입
 # ----------------------
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
 class LoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
-        username = request.data.get('username')
+        email = request.data.get('email')
         password = request.data.get('password')
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, email=email, password=password)
         if user is not None:
-            login(request, user)
+            refresh = RefreshToken.for_user(user)
             serializer = UsersSerializer(user)
             return Response({
-                "message": "Login successful",
-                "user": serializer.data
-            }, status=status.HTTP_200_OK)
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': serializer.data
+            })
         else:
             return Response({"error": "아이디나 비밀번호를 다시 확인해주세요"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# LogoutView 수정 제안
 class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
-        logout(request)
-        # 메시지를 로그아웃 성공으로 변경
-        return Response({"message": "성공적으로 로그아웃 되었습니다."}, status=status.HTTP_200_OK)
+        # For stateless JWT, logout is handled client-side by deleting tokens.
+        # Optionally, you can implement token blacklisting here if needed.
+        return Response({"message": "성공적으로 로그아웃 되었습니다. 클라이언트에서 토큰을 삭제해주세요."}, status=status.HTTP_200_OK)
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
@@ -70,12 +65,12 @@ class RegisterView(APIView):
     
     # 프로젝트 목록을 보여주는 API 뷰
 class ProjectListView(ListAPIView):
+    permission_classes = [AllowAny]
     queryset = Projects.objects.all() # 데이터베이스에서 모든 프로젝트를 가져옵니다.
     serializer_class = ProjectSerializer # ProjectSerializer를 사용해 JSON으로 변환합니다.
 
 
 # UserProfileView 수정 제안
-@method_decorator(ensure_csrf_cookie, name='dispatch') # <--- 이 줄이 핵심입니다.
 class UserProfileView(RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]

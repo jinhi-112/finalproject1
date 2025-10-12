@@ -8,23 +8,7 @@ import { Label } from "../../../shared/components/Label";
 import { ErrorMessage } from "../../auth/components/ErrorMessage";
 import { Button } from "../../../shared/components/Button";
 import { Modal } from "../../../shared/components/Modal"; // New import
-
-// Helper to get CSRF token from cookies
-function getCookie(name: string) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      // Does this cookie string begin with the name we want?
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
+import apiClient from "../../../api";
 
 const schema = yup.object().shape({
   title: yup.string().required("프로젝트 제목은 필수입니다."),
@@ -42,24 +26,10 @@ export function ProjectRegisterPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false); // New state
 
   const onSubmit = async (data: any) => {
-    const csrftoken = getCookie('csrftoken');
-
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/projects/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrftoken || '',
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await apiClient.post('/projects/', data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('프로젝트 등록 성공:', result);
+      console.log('프로젝트 등록 성공:', result.data);
       setShowSuccessModal(true); // Show modal on success
     } catch (error) {
       console.error('프로젝트 등록 실패:', error);

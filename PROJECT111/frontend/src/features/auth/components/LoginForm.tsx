@@ -8,7 +8,6 @@ import { Label } from "../../../shared/components/Label";
 import { ErrorMessage } from "./ErrorMessage";
 import { Button } from "../../../shared/components/Button";
 import { useAuth } from "../../../shared/contexts/AuthContext"; // New import
-import axios from "axios";
 
 const schema = yup.object().shape({
   email: yup.string().email("이메일 형식이 아닙니다.").required("필수 입력"),
@@ -25,26 +24,17 @@ export function LoginForm() {
 
   const onSubmit = async (data: any) => {
     setLoginError("");
-
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/login/', {
-        username: data.email,
-        password: data.password
-      });
-
-      // 로그인 성공
-      alert(response.data.message); // "로그인 완료" 알림창 띄우기
-
-      // AuthContext에 백엔드로부터 받은 실제 사용자 정보 저장
-      login(response.data.user);
-
-      navigate("/"); // 메인 페이지로 이동
+      // Call the login function from the context, which now handles the API call
+      await login(data.email, data.password);
+      
+      // Navigate to the main page on success
+      navigate("/");
 
     } catch (error: any) {
       console.error("Login failed:", error);
       const errorMessage = error.response?.data?.error || "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.";
       setLoginError(errorMessage);
-      alert(errorMessage); // 명확한 알림창 추가
     }
   };
 
