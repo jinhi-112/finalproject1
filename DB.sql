@@ -9,7 +9,7 @@ user_id INT PRIMARY KEY AUTO_INCREMENT,  -- 유저 번호
 name VARCHAR(50),  -- 이름
 birthdate DATE,  --  생년월일
 email VARCHAR(100) UNIQUE,  -- 이메일
-password_hash VARCHAR(255),  -- 비밀번호(해시)
+password VARCHAR(255),  -- 비밀번호(해시)
 introduction TEXT,  -- 자기소개
 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -118,3 +118,6 @@ ADD COLUMN availability_period VARCHAR(10),
 ADD COLUMN is_profile_complete BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE Users ADD COLUMN last_login DATETIME NULL;
+ALTER TABLE Users ADD COLUMN is_staf BOOLEAN;
+ALTER TABLE Users ADD COLUMN is_active BOOLEAN;
+ALTER TABLE Users ADD COLUMN is_superuser BOOLEAN;

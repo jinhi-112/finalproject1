@@ -31,39 +31,63 @@ export interface Option<T> {
 // Activity Regions
 export const ActivityRegion = {
   SEOUL: "SEOUL",
-  CHUNGCHEONG: "CHUNGCHEONG",
-  YEONGNAM: "YEONGNAM",
-  HONAM: "HONAM",
-  OTHER: "OTHER"
+  BUSAN: "BUSAN",
+  DAEGU: "DAEGU",
+  INCHEON: "INCHEON",
+  GWANGJU: "GWANGJU",
+  DAEJEON: "DAEJEON",
+  ULSAN: "ULSAN",
+  SEJONG: "SEJONG",
+  GYEONGGI: "GYEONGGI",
+  GANGWON: "GANGWON",
+  CHUNGCHEONGBUK: "CHUNGCHEONGBUK",
+  CHUNGCHEONGNAM: "CHUNGCHEONGNAM",
+  JEOLLABUK: "JEOLLABUK",
+  JEOLLANAM: "JEOLLANAM",
+  GYEONGSANGBUK: "GYEONGSANGBUK",
+  GYEONGSANGNAM: "GYEONGSANGNAM",
+  JEJU: "JEJU"
 } as const;
 
 export type ActivityRegion = typeof ActivityRegion[keyof typeof ActivityRegion];
 
 export const ACTIVITY_REGIONS: Option<ActivityRegion>[] = [
-  { id: ActivityRegion.SEOUL, label: "수도권" },
-  { id: ActivityRegion.CHUNGCHEONG, label: "충청권" },
-  { id: ActivityRegion.YEONGNAM, label: "영남권" },
-  { id: ActivityRegion.HONAM, label: "호남권" },
-  { id: ActivityRegion.OTHER, label: "기타" }
+  { id: ActivityRegion.SEOUL, label: "서울특별시" },
+  { id: ActivityRegion.BUSAN, label: "부산광역시" },
+  { id: ActivityRegion.DAEGU, label: "대구광역시" },
+  { id: ActivityRegion.INCHEON, label: "인천광역시" },
+  { id: ActivityRegion.GWANGJU, label: "광주광역시" },
+  { id: ActivityRegion.DAEJEON, label: "대전광역시" },
+  { id: ActivityRegion.ULSAN, label: "울산광역시" },
+  { id: ActivityRegion.SEJONG, label: "세종특별자치시" },
+  { id: ActivityRegion.GYEONGGI, label: "경기도" },
+  { id: ActivityRegion.GANGWON, label: "강원도" },
+  { id: ActivityRegion.CHUNGCHEONGBUK, label: "충청북도" },
+  { id: ActivityRegion.CHUNGCHEONGNAM, label: "충청남도" },
+  { id: ActivityRegion.JEOLLABUK, label: "전라북도" },
+  { id: ActivityRegion.JEOLLANAM, label: "전라남도" },
+  { id: ActivityRegion.GYEONGSANGBUK, label: "경상북도" },
+  { id: ActivityRegion.GYEONGSANGNAM, label: "경상남도" },
+  { id: ActivityRegion.JEJU, label: "제주특별자치도" }
 ];
 
 // Majors
 export const Major = {
-  COMPUTER_SCIENCE: "COMPUTER_SCIENCE",
-  INFORMATION_SECURITY: "INFORMATION_SECURITY",
-  DESIGN: "DESIGN",
-  BUSINESS: "BUSINESS",
+  PROGRAMMING: "PROGRAMMING",
+  DATA_AI: "DATA_AI",
+  SECURITY_NET:"SECURITY_NET",
+  DESIGN:"DESIGN",
   NON_MAJOR: "NON_MAJOR"
 } as const;
 
 export type Major = typeof Major[keyof typeof Major];
 
 export const MAJORS: Option<Major>[] = [
-  { id: Major.COMPUTER_SCIENCE, label: "컴퓨터공학" },
-  { id: Major.INFORMATION_SECURITY, label: "정보보호" },
-  { id: Major.DESIGN, label: "디자인" },
-  { id: Major.BUSINESS, label: "경영/기타" },
-  { id: Major.NON_MAJOR, label: "비전공자" }
+  { id: Major.PROGRAMMING, label: "개발/프로그래밍" },
+  { id: Major.DATA_AI, label: "데이터/AI" },
+  { id: Major.SECURITY_NET, label: "보안/네트워크" },
+  { id: Major.DESIGN, label: "디자인/기획" },
+  { id: Major.NON_MAJOR, label: "비전공자/기타" }
 ];
 
 // Expertise Areas

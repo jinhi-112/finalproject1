@@ -5,6 +5,20 @@ const apiClient = axios.create({
   baseURL: 'http://127.0.0.1:8000/api',
 });
 
+// Request interceptor to add the access token to headers
+apiClient.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Response interceptor for handling token refresh
 apiClient.interceptors.response.use(
   (response) => {
@@ -58,3 +72,22 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+// Moved Project interface definition to individual components to bypass import issues
+
+interface PaginatedProjectsResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: any[]; // Use any[] here as Project is defined elsewhere
+}
+
+export const getMatchedProjects = async (): Promise<any[]> => {
+  const response = await apiClient.get<PaginatedProjectsResponse>('/projects/matched/');
+  return response.data.results;
+};
+
+export const getProjectDetail = async (projectId: number): Promise<any> => {
+  const response = await apiClient.get<any>(`/projects/${projectId}/`);
+  return response.data;
+};

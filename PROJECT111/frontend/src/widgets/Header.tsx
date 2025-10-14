@@ -26,7 +26,7 @@ export function Header() {
           {isAuthenticated ? (
             <>
               <Link to="/user-info">
-                <Button variant="ghost">내 정보</Button>
+                <Button variant="ghost">마이페이지</Button>
               </Link>
               <Button onClick={logout}>로그아웃</Button>
             </>

@@ -1,8 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-# from .views import ProjectViewSet, login_view, RegisterView, match_project_users
-from .views import LoginView, RegisterView, match_project_users, ProjectListView, UserProfileView, LogoutView
+from .views import LoginView, RegisterView, ProjectListView, UserProfileView, LogoutView, ProjectSearchView, MatchProjectUserView, ProjectDetailView, MatchedProjectListView, ProjectApplyView # Added ProjectApplyView
 
 router = DefaultRouter()
 
@@ -13,8 +12,13 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('user-info/', UserProfileView.as_view(), name='user-info'),
     
-    # path('internal-api/match/projects/<int:project_id>/', match_project_users, name='match_project_users'),
-    # path('api/projects/', ProjectListView.as_view(), name='project-list'),
+    # Project related URLs
+    path('projects/search/', ProjectSearchView.as_view(), name='project-search'),
+    path('projects/<int:project_id>/apply/', ProjectApplyView.as_view(), name='project-apply'),
+    path('projects/<int:project_id>/', ProjectDetailView.as_view(), name='project-detail'),
     path('projects/', ProjectListView.as_view(), name='project-list'),
+    path('projects/matched/', MatchedProjectListView.as_view(), name='matched-project-list'), # New matched project list endpoint
 
+    # Match related URLs
+    path('match/project/<int:project_id>/', MatchProjectUserView.as_view(), name='match-project-user'),
 ]

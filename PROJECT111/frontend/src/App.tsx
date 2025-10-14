@@ -7,22 +7,11 @@ import { Body } from "./widgets/Body";
 import { AuthGuard } from "./features/auth/guards/AuthGuard";
 import { ProjectDetailPage } from "./features/projects/pages/ProjectDetailPage";
 import { ProjectRegisterPage } from "./features/projects/pages/ProjectRegisterPage";
+import { FindProjectsPage } from "./features/projects/pages/FindProjectsPage";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
 import { MainPage } from "./pages/MainPage";
 
-const ProfileCompletionBanner = () => {
-  const { user } = useAuth();
 
-  if (user && !user.is_profile_complete) {
-    return (
-      <div className="bg-yellow-200 text-center p-2">
-        <p>매칭을 위해선 더 많은 정보를 입력해주셔야 합니다. <Link to="/user-info" className="underline font-bold">정보 입력하기</Link></p>
-      </div>
-    );
-  }
-
-  return null;
-};
 
 function App() {
   return (
@@ -30,7 +19,7 @@ function App() {
       <BrowserRouter>
         <div className="relative flex flex-col h-screen">
           <Header />
-          <ProfileCompletionBanner />
+          
           <Body>
             <Routes>
               <Route path="/register" element={<RegisterPage />} />
@@ -44,9 +33,10 @@ function App() {
               <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
               <Route path="/register-project" element={
                 <AuthGuard>
-                  <UserInformationPage />
+                  <ProjectRegisterPage />
                 </AuthGuard>
               } />
+              <Route path="/find-projects" element={<FindProjectsPage />} />
             </Routes>
           </Body>
         </div>

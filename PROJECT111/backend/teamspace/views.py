@@ -7,21 +7,45 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404, RetrieveAPIView # Added RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Projects, User, ProjectEmbedding, UserEmbedding
-from .ai_services import calculate_similarity
+from .models import Projects, User, ProjectEmbedding, UserEmbedding, MatchScores, ProjectApplicants
+from .ai_services import MatchService # Import MatchService
+from .ai_services import calculate_similarity, generate_match_explanation, generate_embedding # Added generate_embedding
 from .serializers import (
     UsersSerializer,
     UserProfileSerializer,
     UserRegistrationSerializer,
+    ProjectDetailSerializer, # Added ProjectDetailSerializer
 )
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ----------------------
+# 지원하기
+# ----------------------
+class ProjectApplyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        project = get_object_or_404(Projects, pk=project_id)
+        user = request.user
+
+        # 이미 지원했는지 확인
+        applicant, created = ProjectApplicants.objects.get_or_create(
+            user=user,
+            project=project
+        )
+
+        if not created:
+            return Response({"message": "이미 이 프로젝트에 지원했습니다." }, status=status.HTTP_409_CONFLICT)
+
+        return Response({"message": "프로젝트에 성공적으로 지원했습니다."}, status=status.HTTP_201_CREATED)
+
 
 # ----------------------
 # 로그인 / 로그아웃 / 회원가입
@@ -64,10 +88,173 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     # 프로젝트 목록을 보여주는 API 뷰
-class ProjectListView(ListAPIView):
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter # Added OrderingFilter
+from rest_framework.generics import ListCreateAPIView
+from rest_framework.pagination import PageNumberPagination # Import PageNumberPagination
+from .filters import ProjectFilter # Import ProjectFilter
+
+# ... other imports ...
+
+class ProjectResultsPagination(PageNumberPagination):
+    page_size = 10 # Number of projects per page
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class ProjectListView(ListCreateAPIView):
+    # permission_classes = [IsAuthenticated] # Remove this line
+    queryset = Projects.objects.all()
+    serializer_class = ProjectSerializer
+
+    def get_permissions(self): # Added get_permissions method
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        serializer.save(creator=self.request.user)
+
+class ProjectSearchView(ListAPIView):
     permission_classes = [AllowAny]
-    queryset = Projects.objects.all() # 데이터베이스에서 모든 프로젝트를 가져옵니다.
-    serializer_class = ProjectSerializer # ProjectSerializer를 사용해 JSON으로 변환합니다.
+    queryset = Projects.objects.all() # This will be the base queryset
+    serializer_class = ProjectSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter] # Keep these for ordering
+    filterset_class = ProjectFilter
+    ordering_fields = ['created_at', 'title', 'recruitment_count']
+    pagination_class = ProjectResultsPagination
+
+    def get_queryset(self):
+        queryset = super().get_queryset() # Get the base queryset (Projects.objects.all())
+        filter = self.filterset_class(self.request.query_params, queryset=queryset)
+        return filter.qs
+
+
+class ProjectDetailView(RetrieveAPIView):
+    permission_classes = [AllowAny] # Allow anyone to view project details
+    queryset = Projects.objects.all()
+    serializer_class = ProjectDetailSerializer # Changed to ProjectDetailSerializer
+    lookup_field = 'project_id' # Use project_id from URL as lookup field
+
+    def get_object(self):
+        obj = super().get_object()
+        user = self.request.user
+        if user.is_authenticated:
+            # Ensure match score and explanation are generated/updated
+            MatchService.get_or_create_match_score(user, obj)
+        return obj
+
+
+from .ai_services import MatchService # Import MatchService
+
+class MatchedProjectListView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProjectSerializer
+    pagination_class = ProjectResultsPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        logger.info(f"MatchedProjectListView: Fetching projects for user {user.email}")
+        if not user.is_authenticated:
+            logger.warning("MatchedProjectListView: User not authenticated, returning empty queryset.")
+            return Projects.objects.none()
+
+        # Use MatchService to get recommended projects
+        recommended_projects_data = MatchService.get_recommended_projects(user)
+        logger.info(f"MatchedProjectListView: MatchService returned {len(recommended_projects_data)} projects for user {user.email}")
+        
+        # Extract sorted projects and prepare context for serializer
+        sorted_project_ids = []
+        user_match_scores = {}
+        for item in recommended_projects_data:
+            project = item['project']
+            score = item['score']
+            sorted_project_ids.append(project.project_id)
+            user_match_scores[project.project_id] = score
+        
+        # Pass the calculated scores to the serializer context
+        self.request.user_match_scores = user_match_scores
+
+        # Fetch projects in the correct order
+        from django.db.models import Case, When
+        preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(sorted_project_ids)])
+        queryset = Projects.objects.filter(project_id__in=sorted_project_ids).order_by(preserved)
+        
+        logger.info(f"MatchedProjectListView: Returning {queryset.count()} projects after sorting.")
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        # Ensure user_match_scores is passed to the serializer
+        context['request'] = self.request # Pass request to serializer context
+        return context
+
+
+class MatchProjectUserView(APIView):
+    permission_classes = [IsAuthenticated] # Only authenticated users can request a match
+
+    def get(self, request, project_id):
+        user = request.user
+        project = get_object_or_404(Projects, project_id=project_id)
+
+        # 1. Retrieve Embeddings
+        try:
+            user_embedding_obj = UserEmbedding.objects.get(user=user)
+            project_embedding_obj = ProjectEmbedding.objects.get(project=project)
+        except (UserEmbedding.DoesNotExist, ProjectEmbedding.DoesNotExist):
+            return Response(
+                {"error": "사용자 또는 프로젝트 임베딩을 찾을 수 없습니다. 프로필/프로젝트 정보가 충분한지 확인해주세요."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        user_embedding = user_embedding_obj.embedding
+        project_embedding = project_embedding_obj.embedding
+
+        if not user_embedding or not project_embedding:
+            return Response(
+                {"error": "임베딩 데이터가 유효하지 않습니다. 임베딩 생성에 문제가 있을 수 있습니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Calculate Similarity
+        similarity_score = calculate_similarity(user_embedding, project_embedding) * 100 # Convert to percentage
+
+        # 3. Generate Explanation using GPT
+        # Prepare data for GPT prompt
+        user_data = {
+            "name": user.name,
+            "introduction": user.introduction,
+            "tech_stack": user.tech_stack,
+            "major": user.major,
+            "experience_level": user.experience_level,
+            "collaboration_style": user.collaboration_style,
+            "preferred_project_topics": user.preferred_project_topics,
+        }
+        project_data = {
+            "title": project.title,
+            "description": project.description,
+            "goal": project.goal,
+            "tech_stack": project.tech_stack,
+            "recruitment_count": project.recruitment_count,
+        }
+        explanation = generate_match_explanation(user_data, project_data, similarity_score)
+
+        # 4. Save Match Score and Explanation
+        match_score_obj, created = MatchScores.objects.update_or_create(
+            user=user,
+            project=project,
+            defaults={'score': similarity_score, 'explanation': explanation}
+        )
+
+        return Response({
+            "user_id": user.user_id,
+            "project_id": project.project_id,
+            "score": round(similarity_score, 2),
+            "explanation": explanation,
+            "status": "매칭 점수 및 설명이 성공적으로 생성/업데이트되었습니다." if created else "매칭 점수 및 설명이 업데이트되었습니다."
+        }, status=status.HTTP_200_OK)
+
+
 
 
 # UserProfileView 수정 제안
@@ -113,4 +300,8 @@ def match_project_users(request, project_id):
 
     # DRF의 Response 객체를 사용하는 것이 일관성에 좋습니다.
     return Response({'project_id': project_id, 'matches': match_results})
+
+
+
+
 

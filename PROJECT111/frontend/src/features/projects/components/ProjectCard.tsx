@@ -7,6 +7,11 @@ interface Project {
   title: string;
   description: string;
   tech_stack: string; // Assuming it's a string for now
+  recruitment_count: number;
+  start_date: string;
+  end_date: string;
+  matching_rate: number;
+  user_matching_rate?: number; // New field
 }
 
 interface ProjectCardProps {
@@ -14,48 +19,65 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  // Placeholder data as the API doesn't provide this yet
-  const teamSize = "4명";
-  const duration = "3개월";
-  const matchRate = "95%";
-
-  // The API currently returns a single string. Let's handle it gracefully.
   const techTags = project.tech_stack?.split(',').map(tag => tag.trim()).filter(tag => tag) || [];
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR');
+  };
+
+  const duration = project.start_date && project.end_date 
+    ? `${formatDate(project.start_date)} ~ ${formatDate(project.end_date)}`
+    : "미정";
+
   return (
-    <div className="p-6 bg-white rounded-lg border border-gray-200 shadow-md h-full flex flex-col">
-      <h5 className="mb-2 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-        {project.title}
-      </h5>
-      <p className="mb-4 font-normal text-gray-600 text-sm dark:text-gray-400 flex-grow">
-        {project.description}
-      </p>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {techTags.map(tag => (
-          <span key={tag} className="bg-gray-200 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-gray-700 dark:text-gray-300">
-            {tag}
-          </span>
-        ))}
-      </div>
-      
-      <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-400 mb-2">
-          <span>모집 인원:</span>
-          <span className="font-semibold text-gray-900 dark:text-white">{teamSize}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-400 mb-2">
-          <span>기간:</span>
-          <span className="font-semibold text-gray-900 dark:text-white">{duration}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-400 mb-6">
-          <span>매칭률:</span>
-          <span className="font-semibold text-blue-600 dark:text-blue-500">{matchRate}</span>
+    <Link to={`/projects/${project.project_id}`} className="block group">
+      <div className="p-6 bg-white rounded-xl border border-slate-200 flex flex-col transition-all duration-300 ease-in-out group-hover:shadow-lg group-hover:-translate-y-1">
+        
+        {/* Header Section */}
+        <div>
+          <div className="flex justify-between items-start mb-4">
+            <h5 className="text-lg font-extrabold text-slate-800 tracking-tight">
+              {project.title}
+            </h5>
+            {project.user_matching_rate !== undefined && project.user_matching_rate !== null && (
+              <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                </svg>
+                <span className="font-bold text-sm">{project.user_matching_rate}%</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tech Tags */}
+          <div className="mb-5 flex flex-wrap gap-2">
+            {techTags.slice(0, 4).map(tag => ( // Show max 4 tags
+              <span key={tag} className="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1 rounded-md">
+                {tag}
+              </span>
+            ))}
+            {techTags.length > 4 && (
+              <span className="bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1 rounded-md">
+                +{techTags.length - 4}
+              </span>
+            )}
+          </div>
         </div>
 
-        <Link to={`/projects/${project.project_id}`} className="w-full">
-          <Button variant="outline" className="w-full">자세히 보기</Button>
-        </Link>
+        {/* Footer Section */}
+        <div className="pt-4">
+          <div className="flex justify-between items-center text-sm text-slate-500 mb-2">
+            <span>모집 인원</span>
+            <span className="font-semibold text-slate-700">{project.recruitment_count}명</span>
+          </div>
+          <div className="flex justify-between items-center text-sm text-slate-500">
+            <span>프로젝트 기간</span>
+            <span className="font-semibold text-slate-700">{duration}</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }

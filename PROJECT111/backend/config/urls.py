@@ -29,6 +29,7 @@ from django.http import HttpResponse
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('teamspace.urls')),  # ✅ /api/login/ 연결됨
-    path('', lambda request: HttpResponse("Django 서버가 실행 중입니다.")),
+    path('', lambda request: HttpResponse("Django 서버가 실행 중입니다."))
 ]
+
 

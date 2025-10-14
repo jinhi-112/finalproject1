@@ -1,14 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Button } from '@/shared/components/Button'; // 경로 별칭 사용
-import { Input } from '@/shared/components/Input';   // 경로 별칭 사용
-import { Label } from '@/shared/components/Label';   // 경로 별칭 사용
-import { useAuth } from '@/shared/contexts/AuthContext'; // 경로 별칭 사용
-import apiClient from '@/api'; // ⭐️ 중요: axios 대신 apiClient를 사용합니다.
+import { Link } from 'react-router-dom';
+import { Button } from '@/shared/components/Button';
+import { Input } from '@/shared/components/Input';
+import { Label } from '@/shared/components/Label';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import apiClient from '@/api';
+import { UserInfoDisplay } from '../components/UserInfoDisplay'; // Import the display component
 
-// --- 데이터 상수 --- //
-const REGION_OPTIONS = [{ value: 'SEOUL', label: '수도권' }, { value: 'CHUNGCHEONG', label: '충청권' }, { value: 'YEONGNAM', label: '영남권' }, { value: 'HONAM', label: '호남권' }, { value: 'ETC', label: '기타' }];
-const MAJOR_OPTIONS = [{ value: 'CS', label: '컴퓨터공학' }, { value: 'SECURITY', label: '정보보호' }, { value: 'DESIGN', label: '디자인' }, { value: 'BUSINESS', label: '경영/기타' }, { value: 'NON_CS', label: '비전공자' }];
+// --- Data Constants (Should be centralized) ---
+const REGION_OPTIONS = [
+    { value: 'SEOUL', label: '서울특별시' }, { value: 'BUSAN', label: '부산광역시' }, 
+    { value: 'DAEGU', label: '대구광역시' }, { value: 'INCHEON', label: '인천광역시' }, 
+    { value: 'GWANGJU', label: '광주광역시' }, { value: 'DAEJEON', label: '대전광역시' }, 
+    { value: 'ULSAN', label: '울산광역시' }, { value: 'SEJONG', label: '세종특별자치시' }, 
+    { value: 'GYEONGGI', label: '경기도' }, { value: 'GANGWON', label: '강원도' }, 
+    { value: 'CHUNGCHEONGBUK', label: '충청북도' }, { value: 'CHUNGCHEONGNAM', label: '충청남도' }, 
+    { value: 'JEOLLABUK', label: '전라북도' }, { value: 'JEOLLANAM', label: '전라남도' }, 
+    { value: 'GYEONGSANGBUK', label: '경상북도' }, { value: 'GYEONGSANGNAM', label: '경상남도' }, 
+    { value: 'JEJU', label: '제주특별자치도' },
+];
+const MAJOR_OPTIONS = [
+  { value: "PROGRAMMING", label: "개발/프로그래밍" }, { value: "DATA_AI", label: "데이터/AI" },
+  { value: "SECURITY_NET", label: "보안/네트워크" }, { value: "DESIGN", label: "디자인/기획" },
+  { value: "NON_MAJOR", label: "비전공자/기타" }
+];
 const SPECIALTY_OPTIONS = [{ value: 'frontend', label: '프론트엔드' }, { value: 'backend', label: '백엔드' }, { value: 'ai', label: 'AI/머신러닝' }, { value: 'app', label: '앱 개발' }, { value: 'game', label: '게임 개발' }, { value: 'data', label: '데이터 분석' },{ value: 'UX', label: 'UX/UI 디자인'}, { value: 'PM', label: '기획/PM' }, { value: 'security', label: '정보보안' } ];
 const TECH_STACK_OPTIONS = [ { value: 'React', label: 'React' }, { value: 'Vue', label: 'Vue' }, { value: 'HTML/CSS/JS', label: 'HTML/CSS/JS' }, { value: 'Django', label: 'Django' }, { value: 'Flask', label: 'Flask' }, { value: 'Node.js', label: 'Node.js' }, { value: 'Java', label: 'Java' }, { value: 'Spring', label: 'Spring' }, { value: 'Python', label: 'Python' }, { value: 'C/C++', label: 'C/C++' }, { value: 'Kotlin', label: 'Kotlin' }, { value: 'Swift', label: 'Swift' }, { value: 'TensorFlow', label: 'TensorFlow' }, { value: 'PyTorch', label: 'PyTorch' }, { value: 'MySQL', label: 'MySQL' }, { value: 'MongoDB', label: 'MongoDB' }, { value: 'Other', label: '기타' } ];
 const COLLAB_TOOL_OPTIONS = [ { value: 'Git', label: 'Git' }, { value: 'GitHub', label: 'GitHub' }, { value: 'Notion', label: 'Notion' }, { value: 'Figma', label: 'Figma' }, { value: 'Slack', label: 'Slack' }, { value: 'Discord', label: 'Discord' }, { value: 'Jira', label: 'Jira' }, { value: 'Trello', label: 'Trello' } ];
@@ -30,7 +46,7 @@ const TEAM_SIZE_OPTIONS = [ { value: 'SMALL', label: '2~3명' }, { value: 'MEDIU
 const PROJECT_TOPIC_OPTIONS = [ { value: 'web', label: '웹 서비스' }, { value: 'app', label: '앱 개발' }, { value: 'ai', label: '인공지능' }, { value: 'chatbot', label: '챗봇' }, { value: 'social', label: '소셜 미디어' }, { value: 'community', label: '커뮤니티' }, { value: 'healthcare', label: '헬스케어' }, { value: 'education', label: '교육' }, { value: 'finance', label: '금융' }, { value: 'other', label: '기타' } ];
 const AVAILABILITY_PERIOD_OPTIONS = [ { value: 'SHORT', label: '단기: 1달 이내' }, { value: 'MEDIUM', label: '중기: 2~3달' }, { value: 'LONG', label: '장기: 3달 이상/기타' } ];
 
-// --- API 통신 함수 (apiClient 사용으로 수정) --- //
+// --- API Functions ---
 const fetchUserInfo = async () => {
   const response = await apiClient.get('/user-info/');
   return response.data;
@@ -41,7 +57,7 @@ const updateUserInfo = async (data: any) => {
   return response.data;
 };
 
-// --- 재사용 컴포넌트 --- //
+// --- Reusable Components ---
 const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div className="p-6 border rounded-lg shadow-sm bg-white dark:bg-gray-800">
     <h2 className="text-2xl font-bold mb-6">{title}</h2>
@@ -50,30 +66,67 @@ const Section = ({ title, children }: { title: string, children: React.ReactNode
 );
 
 const FormField = ({ label, children }: { label: string, children: React.ReactNode }) => (
-  <div className="flex flex-col gap-2"> 
+  <div className="flex flex-col gap-2">
     <Label className="font-semibold">{label}</Label>
     <div>{children}</div>
   </div>
 );
 
-// --- 섹션별 컴포넌트 --- //
+// --- Form Component ---
+const UserInfoForm = ({ onSaveSuccess, onCancel }: { onSaveSuccess: () => void, onCancel?: () => void }) => {
+  const { register, handleSubmit, reset, control } = useForm();
+  const { user, refreshUser } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      reset({
+        ...user,
+        available_region: user.available_region || [],
+        specialty: user.specialty || [],
+        tech_stack: user.tech_stack || [],
+        collaboration_tools: user.collaboration_tools || [],
+        preferred_project_topics: user.preferred_project_topics || [],
+      });
+    }
+  }, [user, reset]);
+
+  const onSubmit = async (data: any) => {
+    try {
+      await updateUserInfo(data);
+      await refreshUser(); // Refresh user context after update
+      alert('정보가 성공적으로 저장되었습니다.');
+      onSaveSuccess(); // Notify parent to switch mode
+    } catch (error: any) {
+      console.error("정보 저장 중 에러:", error.response?.data || error);
+      const errorDetails = JSON.stringify(error.response?.data, null, 2);
+      alert(`정보 저장에 실패했습니다. 서버 응답:\n${errorDetails}`);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <h1 className="text-4xl font-bold text-center my-8">내 정보 입력</h1>
+      {/* Form sections would be modularized in a real app, but are included here for simplicity */}
+      <BasicInfoSection register={register} control={control} />
+      <SkillsExperienceSection register={register} control={control} />
+      <CollaborationStyleSection register={register} control={control} />
+      <ProjectPreferencesSection register={register} control={control} />
+
+      <div className="flex justify-center gap-4 mt-10">
+        {onCancel && <Button type="button" variant="outline" size="lg" onClick={onCancel}>취소</Button>}
+        <Button type="submit" size="lg">정보 저장하기</Button>
+      </div>
+    </form>
+  );
+};
+
+// --- Section Components for the Form ---
 const BasicInfoSection = ({ register, control }: { register: any, control: any }) => (
     <Section title="기본 정보 입력">
-        <FormField label="이름 (필수)">
-            <Input {...register('name', { required: true })} placeholder="이름을 입력하세요" />
-        </FormField>
+        <FormField label="이름 (필수)"><Input {...register('name', { required: true })} placeholder="이름을 입력하세요" /></FormField>
         <FormField label="활동 가능 지역 (필수)">
             <Controller name="available_region" control={control} render={({ field }) => (
-                <div className="flex gap-4 flex-wrap">
-                    {REGION_OPTIONS.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2">
-                            <input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => {
-                                const newValues = e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value);
-                                field.onChange(newValues);
-                            }} /> {opt.label}
-                        </label>
-                    ))}
-                </div>
+                <div className="flex gap-4 flex-wrap">{REGION_OPTIONS.map(opt => (<label key={opt.value} className="flex items-center gap-2"><input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => field.onChange(e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value))} /> {opt.label}</label>))}</div>
             )} />
         </FormField>
         <FormField label="깃허브 주소"><Input {...register('github_url')} placeholder="https://github.com/username" /></FormField>
@@ -84,220 +137,75 @@ const BasicInfoSection = ({ register, control }: { register: any, control: any }
 
 const SkillsExperienceSection = ({ register, control }: { register: any, control: any }) => (
     <Section title="기술 역량 및 경험">
-        <FormField label="전공 또는 주요 학습 분야">
-            <select {...register('major')} className="w-full p-2 border rounded-md">
-                {MAJOR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-        </FormField>
+        <FormField label="전공 또는 주요 학습 분야"><select {...register('major')} className="w-full p-2 border rounded-md">{MAJOR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
         <FormField label="가장 자신 있는 분야 (1~2개)">
             <Controller name="specialty" control={control} render={({ field }) => (
-                <div className="flex gap-4 flex-wrap">
-                    {SPECIALTY_OPTIONS.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2">
-                            <input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => {
-                                const newValues = e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value);
-                                field.onChange(newValues);
-                            }} /> {opt.label}
-                        </label>
-                    ))}
-                </div>
+                <div className="flex gap-4 flex-wrap">{SPECIALTY_OPTIONS.map(opt => (<label key={opt.value} className="flex items-center gap-2"><input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => field.onChange(e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value))} /> {opt.label}</label>))}</div>
             )} />
         </FormField>
         <FormField label="사용 가능한 기술 스택">
             <Controller name="tech_stack" control={control} render={({ field }) => (
-                <div className="flex gap-4 flex-wrap">
-                    {TECH_STACK_OPTIONS.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2">
-                            <input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => {
-                                const newValues = e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value);
-                                field.onChange(newValues);
-                            }} /> {opt.label}
-                        </label>
-                    ))}
-                </div>
+                <div className="flex gap-4 flex-wrap">{TECH_STACK_OPTIONS.map(opt => (<label key={opt.value} className="flex items-center gap-2"><input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => field.onChange(e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value))} /> {opt.label}</label>))}</div>
             )} />
         </FormField>
         <FormField label="협업 툴 사용 경험">
             <Controller name="collaboration_tools" control={control} render={({ field }) => (
-                <div className="flex gap-4 flex-wrap">
-                    {COLLAB_TOOL_OPTIONS.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2">
-                            <input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => {
-                                const newValues = e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value);
-                                field.onChange(newValues);
-                            }} /> {opt.label}
-                        </label>
-                    ))}
-                </div>
+                <div className="flex gap-4 flex-wrap">{COLLAB_TOOL_OPTIONS.map(opt => (<label key={opt.value} className="flex items-center gap-2"><input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => field.onChange(e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value))} /> {opt.label}</label>))}</div>
             )} />
         </FormField>
-        <FormField label="사이드 프로젝트 참여 경험 횟수">
-            <select {...register('experience_level')} className="w-full p-2 border rounded-md">
-                {EXPERIENCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-        </FormField>
+        <FormField label="사이드 프로젝트 참여 경험 횟수"><select {...register('experience_level')} className="w-full p-2 border rounded-md">{EXPERIENCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
     </Section>
 );
 
 const CollaborationStyleSection = ({ register, control }: { register: any, control: any }) => {
     const [selectedBelbin, setSelectedBelbin] = useState('');
-    const selectedRole = BELBIN_ROLE_OPTIONS.find(opt => opt.value === selectedBelbin);
-
     return (
         <Section title="협업 성향 및 방식">
-            <FormField label="선호하는 협업 방식">
-                <select {...register('collaboration_style')} className="w-full p-2 border rounded-md">
-                    {COLLABORATION_STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-            </FormField>
-            <FormField label="가능한 미팅 빈도 (주 단위)">
-                <select {...register('meeting_frequency')} className="w-full p-2 border rounded-md">
-                    {MEETING_FREQUENCY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-            </FormField>
-            <div className="md:col-span-2">
-                <FormField label="벨빈 팀 역할 유형">
-                    <Controller name="belbin_role" control={control} render={({ field }) => (
-                        <div className="space-y-2">
-                            {BELBIN_ROLE_OPTIONS.map(opt => (
-                                <label key={opt.value} className="flex items-start gap-3">
-                                    <input type="radio" value={opt.value} checked={field.value === opt.value} onChange={e => { field.onChange(e.target.value); setSelectedBelbin(e.target.value); }} />
-                                    <span>{opt.label}</span>
-                                </label>
-                            ))}
-                        </div>
-                    )} />
-                    {selectedRole && <div className="mt-4 p-3 bg-gray-100 rounded-md"><p className="font-semibold">{selectedRole.label}</p><p className="text-sm text-gray-600">{selectedRole.description}</p></div>}
-                </FormField>
-            </div>
+            <FormField label="선호하는 협업 방식"><select {...register('collaboration_style')} className="w-full p-2 border rounded-md">{COLLABORATION_STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
+            <FormField label="가능한 미팅 빈도 (주 단위)"><select {...register('meeting_frequency')} className="w-full p-2 border rounded-md">{MEETING_FREQUENCY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
+            <div className="md:col-span-2"><FormField label="벨빈 팀 역할 유형"><Controller name="belbin_role" control={control} render={({ field }) => (<div className="space-y-2">{BELBIN_ROLE_OPTIONS.map(opt => (<label key={opt.value} className="flex items-start gap-3"><input type="radio" value={opt.value} checked={field.value === opt.value} onChange={e => { field.onChange(e.target.value); setSelectedBelbin(e.target.value); }} /><span>{opt.label}</span></label>))}</div>)} />{BELBIN_ROLE_OPTIONS.find(opt => opt.value === selectedBelbin) && <div className="mt-4 p-3 bg-gray-100 rounded-md"><p className="font-semibold">{BELBIN_ROLE_OPTIONS.find(opt => opt.value === selectedBelbin)!.label}</p><p className="text-sm text-gray-600">{BELBIN_ROLE_OPTIONS.find(opt => opt.value === selectedBelbin)!.description}</p></div>}</FormField></div>
         </Section>
     );
 };
 
 const ProjectPreferencesSection = ({ register, control }: { register: any, control: any }) => (
     <Section title="프로젝트 관련 선호도">
-        <FormField label="희망하는 팀원 수">
-            <select {...register('preferred_team_size')} className="w-full p-2 border rounded-md">
-                {TEAM_SIZE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-        </FormField>
+        <FormField label="희망하는 팀원 수"><select {...register('preferred_team_size')} className="w-full p-2 border rounded-md">{TEAM_SIZE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
         <FormField label="선호하는 프로젝트 주제">
             <Controller name="preferred_project_topics" control={control} render={({ field }) => (
-                <div className="flex gap-4 flex-wrap">
-                    {PROJECT_TOPIC_OPTIONS.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2">
-                            <input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => {
-                                const newValues = e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value);
-                                field.onChange(newValues);
-                            }} /> {opt.label}
-                        </label>
-                    ))}
-                </div>
+                <div className="flex gap-4 flex-wrap">{PROJECT_TOPIC_OPTIONS.map(opt => (<label key={opt.value} className="flex items-center gap-2"><input type="checkbox" value={opt.value} checked={field.value?.includes(opt.value)} onChange={e => field.onChange(e.target.checked ? [...(field.value || []), e.target.value] : field.value.filter((v: string) => v !== e.target.value))} /> {opt.label}</label>))}</div>
             )} />
         </FormField>
-        <FormField label="참여 가능 기간">
-            <select {...register('availability_period')} className="w-full p-2 border rounded-md">
-                {AVAILABILITY_PERIOD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-        </FormField>
+        <FormField label="참여 가능 기간"><select {...register('availability_period')} className="w-full p-2 border rounded-md">{AVAILABILITY_PERIOD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FormField>
     </Section>
 );
 
-// --- 메인 페이지 컴포넌트 --- //
+// --- Main Page Component ---
 export function UserInformationPage() {
-  const { register, handleSubmit, reset, control } = useForm({
-    defaultValues: {
-      name: '',
-      available_region: [],
-      github_url: '',
-      portfolio_url: '',
-      introduction: '',
-      major: 'CS',
-      specialty: [],
-      tech_stack: [],
-      collaboration_tools: [],
-      experience_level: 'NONE',
-      collaboration_style: 'OFFLINE',
-      meeting_frequency: 'WEEKLY_1',
-      belbin_role: '',
-      preferred_team_size: 'SMALL',
-      preferred_project_topics: [],
-      availability_period: 'SHORT'
-    }
-  });
   const { user } = useAuth();
+  const [isEditMode, setIsEditMode] = useState(false);
 
+  // Decide whether to start in edit mode
   useEffect(() => {
-    // ⭐️ 중요: API를 호출하기 전에 사용자(user)와 토큰(authToken)이 모두 준비되었는지 확인합니다.
-    const token = localStorage.getItem('authToken');
-    if (user && token) {
-      const loadUserInfo = async () => {
-        try {
-          const userInfo = await fetchUserInfo();
-          const transformedInfo = {
-              ...userInfo,
-              available_region: userInfo.available_region?.split(',') || [],
-              specialty: userInfo.specialty?.split(',') || [],
-              tech_stack: userInfo.tech_stack?.split(',') || [],
-              collaboration_tools: userInfo.collaboration_tools?.split(',') || [],
-              preferred_project_topics: userInfo.preferred_project_topics?.split(',') || [],
-          };
-          reset(transformedInfo);
-        } catch (error) {
-          console.error("사용자 정보 로딩 중 에러:", error);
-          // 사용자에게 피드백을 주는 alert는 유지하되, 개발자용 console.error를 더 자세하게 남깁니다.
-          alert('사용자 정보를 불러오는 데 실패했습니다.');
-        }
-      };
-      loadUserInfo();
+    if (user && !user.is_profile_complete) {
+      setIsEditMode(true);
     }
-  }, [user, reset]);
+  }, [user]);
 
-  const onSubmit = async (data: any) => {
-    try {
-      const transformedData = {
-          ...data,
-          available_region: data.available_region?.join(','),
-          specialty: data.specialty?.join(','),
-          tech_stack: data.tech_stack?.join(','),
-          collaboration_tools: data.collaboration_tools?.join(','),
-          preferred_project_topics: data.preferred_project_topics?.join(','),
-      };
-      
-      await updateUserInfo(transformedData);
-      alert('정보가 성공적으로 저장되었습니다.');
-
-      const latestUserInfo = await fetchUserInfo();
-      const transformedForDisplay = {
-          ...latestUserInfo,
-          available_region: latestUserInfo.available_region?.split(',') || [],
-          specialty: latestUserInfo.specialty?.split(',') || [],
-          tech_stack: latestUserInfo.tech_stack?.split(',') || [],
-          collaboration_tools: latestUserInfo.collaboration_tools?.split(',') || [],
-          preferred_project_topics: latestUserInfo.preferred_project_topics?.split(',') || [],
-      };
-      reset(transformedForDisplay);
-
-    } catch (error: any) {
-      console.error("정보 저장 중 에러:", error.response?.data || error);
-      const errorDetails = JSON.stringify(error.response?.data, null, 2);
-      alert(`정보 저장에 실패했습니다. 서버 응답:\n${errorDetails}`);
-    }
-  };
+  if (!user) {
+    return <div>로딩 중...</div>; // Or a spinner component
+  }
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
-        <h1 className="text-4xl font-bold text-center my-8">내 정보 입력</h1>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <BasicInfoSection register={register} control={control} />
-            <SkillsExperienceSection register={register} control={control} />
-            <CollaborationStyleSection register={register} control={control} />
-            <ProjectPreferencesSection register={register} control={control} />
-
-            <div className="flex justify-center mt-10">
-                <Button type="submit" size="lg">정보 저장하기</Button>
-            </div>
-        </form>
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      {isEditMode ? (
+        <UserInfoForm 
+          onSaveSuccess={() => setIsEditMode(false)} 
+          onCancel={() => user.is_profile_complete ? setIsEditMode(false) : null} // Only show cancel if profile is already complete
+        />
+      ) : (
+        <UserInfoDisplay onEdit={() => setIsEditMode(true)} />
+      )}
     </div>
   );
 }

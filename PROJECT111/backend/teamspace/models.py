@@ -36,13 +36,37 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
 
     # --- 추가 정보 필드 ---
-    REGION_CHOICES = [('SEOUL', '수도권'), ('CHUNGCHEONG', '충청권'), ('YEONGNAM', '영남권'), ('HONAM', '호남권'), ('ETC', '기타')]
-    available_region = models.CharField(max_length=255, null=True, blank=True)
+    KOREAN_REGIONS = [
+        ('SEOUL', '서울특별시'),
+        ('BUSAN', '부산광역시'),
+        ('DAEGU', '대구광역시'),
+        ('INCHEON', '인천광역시'),
+        ('GWANGJU', '광주광역시'),
+        ('DAEJEON', '대전광역시'),
+        ('ULSAN', '울산광역시'),
+        ('SEJONG', '세종특별자치시'),
+        ('GYEONGGI', '경기도'),
+        ('GANGWON', '강원도'),
+        ('CHUNGCHEONGBUK', '충청북도'),
+        ('CHUNGCHEONGNAM', '충청남도'),
+        ('JEOLLABUK', '전라북도'),
+        ('JEOLLANAM', '전라남도'),
+        ('GYEONGSANGBUK', '경상북도'),
+        ('GYEONGSANGNAM', '경상남도'),
+        ('JEJU', '제주특별자치도'),
+    ]
+    available_region = models.TextField(null=True, blank=True)
     github_url = models.URLField(max_length=200, null=True, blank=True)
     portfolio_url = models.URLField(max_length=200, null=True, blank=True)
     introduction = models.TextField(max_length=150, null=True, blank=True)
 
-    MAJOR_CHOICES = [('CS', '컴퓨터공학'), ('SECURITY', '정보보호'), ('DESIGN', '디자인'), ('BUSINESS', '경영/기타'), ('NON_CS', '비전공자')]
+    MAJOR_CHOICES = [
+        ('PROGRAMMING', '개발/프로그래밍'),
+        ('DATA_AI', '데이터/AI'),
+        ('SECURITY_NET', '보안/네트워크'),
+        ('DESIGN', '디자인/기획'),
+        ('NON_MAJOR', '비전공자/기타')
+    ]
     major = models.CharField(max_length=20, choices=MAJOR_CHOICES, null=True, blank=True)
     specialty = models.CharField(max_length=255, null=True, blank=True)
     tech_stack = models.CharField(max_length=255, null=True, blank=True)
@@ -116,6 +140,11 @@ class Projects(models.Model):
     description = models.TextField(null=True, blank=True)
     goal = models.TextField(null=True, blank=True)
     tech_stack = models.TextField(null=True, blank=True)
+    recruitment_count = models.IntegerField(default=0)  # 모집인원
+    start_date = models.DateField(null=True, blank=True)  # 기간 (시작)
+    end_date = models.DateField(null=True, blank=True)  # 기간 (종료)
+    application_deadline = models.DateField(null=True, blank=True) # 지원 마감일
+    matching_rate = models.FloatField(null=True, blank=True)  # 매칭률
     is_open = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -154,6 +183,10 @@ class MatchScores(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, db_column='project_id')
     score = models.FloatField()
+    tech_score = models.IntegerField(default=0)
+    personality_score = models.IntegerField(default=0)
+    experience_score = models.IntegerField(default=0)
+    explanation = models.TextField(null=True, blank=True) # New field for GPT explanation
     evaluated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -208,3 +241,13 @@ class ProjectEmbedding(models.Model):
     class Meta:
         db_table = 'ProjectEmbeddings'
         managed = True
+
+
+class ProjectApplicants(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    project = models.ForeignKey(Projects, on_delete=models.CASCADE)
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ProjectApplicants'
+        unique_together = ('user', 'project')

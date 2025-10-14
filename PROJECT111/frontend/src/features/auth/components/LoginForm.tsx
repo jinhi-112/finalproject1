@@ -28,12 +28,13 @@ export function LoginForm() {
       // Call the login function from the context, which now handles the API call
       await login(data.email, data.password);
       
-      // Navigate to the main page on success
+      // Show success message and navigate to the main page
+      alert("로그인 완료됐습니다");
       navigate("/");
 
     } catch (error: any) {
       console.error("Login failed:", error);
-      const errorMessage = error.response?.data?.error || "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도하세요.";
+      const errorMessage = error.response?.data?.error || "아이디나 비밀번호를 다시 확인해주세요.";
       setLoginError(errorMessage);
     }
   };

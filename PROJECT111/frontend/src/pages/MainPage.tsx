@@ -1,17 +1,45 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectCard } from "../features/projects/components/ProjectCard";
+import { getMatchedProjects } from '../api'; // Import getMatchedProjects
+import { useAuth } from "../shared/contexts/AuthContext"; // Import useAuth
 import { Button } from "../shared/components/Button";
-import apiClient from '../api';
 
-// API로부터 받아올 프로젝트 데이터의 타입을 정의합니다.
+// Define Project interface locally
 interface Project {
   project_id: number;
+  creator: { user_id: number; name: string; email: string };
   title: string;
   description: string;
+  goal: string;
   tech_stack: string;
-  // 필요에 따라 다른 필드들도 추가할 수 있습니다.
+  recruitment_count: number;
+  start_date: string;
+  end_date: string;
+  matching_rate: number | null; // From Projects model
+  user_matching_rate: number | null; // From MatchScores
+  user_match_explanation?: string; // From MatchScores, optional for list view
+  is_open: boolean;
+  created_at: string;
 }
+
+const ProfileCompletionBanner = () => {
+  const { user } = useAuth();
+
+  // Show banner only if user is logged in but profile is not complete
+  if (user && !user.is_profile_complete) {
+    return (
+      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-8 flex items-center justify-between">
+        <p className="font-medium">매칭을 위해선 추가 정보를 입력해주세요.</p>
+        <Link to="/user-info">
+          <Button variant="outline" size="sm">정보 입력하러 가기</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 // ----------------------------------------------------------------
 // ⭐️ 메인 페이지 컴포넌트
@@ -20,18 +48,25 @@ export function MainPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true); // 로딩 상태 추가
+  const { isAuthenticated } = useAuth(); // Get isAuthenticated from AuthContext
 
   useEffect(() => {
+    console.log("MainPage useEffect: isAuthenticated", isAuthenticated);
     // 백엔드 API를 호출하는 함수
     const fetchProjects = async () => {
       try {
         setLoading(true); // 데이터 요청 시작 시 로딩 상태를 true로 설정
-        const response = await apiClient.get('/projects/');
+        // Always fetch generic projects for the main page for now
+        const response = await apiClient.get<{
+          count: number;
+          next: string | null;
+          previous: string | null;
+          results: Project[];
+        }>('/projects/?ordering=-created_at'); // Order by newest
+        fetchedProjects = response.data.results || [];
         
-        // Django REST Framework의 페이지네이션 응답을 고려하여
-        // 실제 데이터는 'results' 키에 있을 수 있습니다.
-        // 'results'가 없으면 data 자체를 사용합니다.
-        setProjects(response.data.results || response.data); 
+        setProjects(fetchedProjects); 
+        console.log("MainPage: Projects state set to", fetchedProjects);
         
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "알 수 없는 에러가 발생했습니다.";
@@ -43,15 +78,7 @@ export function MainPage() {
     };
 
     fetchProjects();
-  }, []); // 컴포넌트가 처음 마운트될 때 한 번만 실행되도록 합니다.
-
-  if (loading) {
-    return <div className="text-center p-10">프로젝트 목록을 불러오는 중...</div>;
-  }
-
-  if (error) {
-    return <div className="text-center p-10 text-red-500">{error}</div>;
-  }
+  }, [isAuthenticated]); // isAuthenticated 상태가 변경될 때마다 다시 불러오도록 합니다.
 
   return (
     <div className="space-y-12">
@@ -67,21 +94,12 @@ export function MainPage() {
         </div>
       </section>
 
-      {/* Search and Filter Bar */}
-      <section>
-        <div className="flex justify-center items-center mb-6 gap-4">
-          <div className="relative w-full">
-            <input type="search" placeholder="프로젝트 검색..." className="w-full p-3 pl-10 border rounded-md" />
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </div>
-          </div>
-          <Button variant="outline">▼ 필터</Button>
-        </div>
-      </section>
-
       {/* Projects Grid */}
       <section>
+        <h2 className="text-3xl font-bold text-center mb-8">
+          {isAuthenticated ? "나에게 맞는 프로젝트" : "최신 프로젝트"}
+        </h2>
+        <ProfileCompletionBanner />
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map(project => (

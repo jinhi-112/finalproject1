@@ -1,35 +1,28 @@
-import os
 from pathlib import Path
+import os
+import dotenv
+import dj_database_url
+from datetime import timedelta
 
-#  Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+dotenv.load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-#  Quick-start development settings - unsuitable for production
-#  See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-#  SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dlo%z5ai # !&aq)75e7wb%qc8xib%g-=+j-*c6l8l0 # ^t*9$h@&'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = "8-g@fzwc270ku%69ogcop_ts$7x@d+f$ys_u47iaz8eimee4e&"
 
-#  SECURITY WARNING: don't run with debug turned on in production!
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
 
-AUTHENTICATION_BACKENDS = [
-    'teamspace.backends.CustomUserBackend',
-    'django.contrib.auth.backends.ModelBackend',
-]
-
-#  Application definition
+# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -39,15 +32,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'django_filters',
     'teamspace',
     'corsheaders',
+    'rest_framework_simplejwt',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -55,19 +49,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'frontend', 'dist')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -83,8 +70,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
- #  Database
- #  https://docs.djangoproject.com/en/4.2/ref/settings/ # databases
+# Database
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -92,18 +79,14 @@ DATABASES = {
         'NAME': 'sideproj',
         'USER': 'root',
         'PASSWORD': 'dpfqkfkrl',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',
         'PORT': '3306',
-        'OPTIONS': {
-        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
     }
 }
 
 
-
- #  Password validation
- #  https://docs.djangoproject.com/en/4.2/ref/settings/ # auth-password-validators
+# Password validation
+# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -121,8 +104,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
- #  Internationalization
- #  https://docs.djangoproject.com/en/4.2/topics/i18n/
+# Internationalization
+# https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
@@ -133,20 +116,73 @@ USE_I18N = True
 USE_TZ = True
 
 
- #  Static files (CSS, JavaScript, Images)
- #  https://docs.djangoproject.com/en/4.2/howto/static-files/
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'frontend', 'dist', 'assets')]
+# Add MEDIA_URL and MEDIA_ROOT for user-uploaded files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
- #  Default primary key field type
- #  https://docs.djangoproject.com/en/4.2/ref/settings/ # default-auto-field
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom Users Model
+AUTH_USER_MODEL = 'teamspace.User'
+
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'teamspace.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# CORS Settings
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+CORS_ALLOW_CREDENTIALS = True
+
+# Django REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# Simple JWT Settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+# OpenAI API Key
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+# Logging Settings
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }

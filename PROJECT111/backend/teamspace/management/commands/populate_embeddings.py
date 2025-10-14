@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from teamspace.models import Users, Projects, UserEmbedding, ProjectEmbedding
+from teamspace.models import User, Projects, UserEmbedding, ProjectEmbedding
 from teamspace.ai_services import generate_embedding
 
 class Command(BaseCommand):
@@ -9,10 +9,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Starting to populate embeddings...'))
 
         # Populate User Embeddings
-        users = Users.objects.all()
+        users = User.objects.all()
         self.stdout.write(f'Processing {users.count()} users...')
         for user in users:
-            text_to_embed = f"{user.introduction or ''} {user.skills or ''}".strip()
+            user_skills_text = " ".join([user_skill.skill.name for user_skill in user.userskills_set.all()])
+            text_to_embed = f"{user.introduction or ''} {user_skills_text}".strip()
             if text_to_embed:
                 embedding = generate_embedding(text_to_embed)
                 if embedding:
