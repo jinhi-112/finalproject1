@@ -1,47 +1,9 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import apiClient from "../../../api";
 import { Button } from "../../../shared/components/Button";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-
-// --- Interfaces ---
-interface Project {
-  project_id: number;
-  creator: {
-    user_id: number;
-    name: string;
-    email: string;
-    specialty?: string;
-    introduction?: string;
-  };
-  title: string;
-  description: string;
-  goal: string;
-  tech_stack: string;
-  recruitment_count: number;
-  start_date: string;
-  end_date: string;
-  application_deadline: string | null;
-  applicant_count: number;
-  user_matching_rate: number | null;
-  user_match_explanation?: {
-      for_recommendation_page: {
-          primary_reason: string;
-          additional_reasons: string[];
-      };
-      for_detail_page: {
-          positive_points: string[];
-          negative_points: string[];
-      };
-  };
-  user_match_scores?: {
-    tech: number;
-    personality: number;
-    experience: number;
-  };
-  is_open: boolean;
-  created_at: string;
-}
+import type { Project } from "../../../shared/types/project";
 
 // --- Helper & Sub-components ---
 const InfoItem = ({ icon, text }: { icon: React.ReactNode, text: string }) => (
@@ -69,9 +31,10 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showTooltip, setShowTooltip] = useState(false);
+  const navigate = useNavigate();
 
   const fetchProject = async () => {
     if (!projectId) return;
@@ -102,19 +65,12 @@ export function ProjectDetailPage() {
     initialFetch();
   }, [projectId, isAuthenticated]);
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!isAuthenticated) {
       alert("로그인이 필요합니다.");
       return;
     }
-    try {
-      const response = await apiClient.post(`/projects/${projectId}/apply/`);
-      alert(response.data.message);
-      fetchProject(); // Re-fetch to update applicant count
-    } catch (error: any) {
-      alert(error.response?.data?.message || "지원 처리 중 오류가 발생했습니다.");
-      console.error("Apply error:", error);
-    }
+    navigate(`/apply/${projectId}`);
   };
 
   if (loading) return <div className="text-center p-10">프로젝트 정보를 불러오는 중...</div>;
@@ -128,7 +84,6 @@ export function ProjectDetailPage() {
 
   const leaderRole = project.creator.specialty?.[0] || '미지정';
   const leaderBio = project.creator.introduction || '자기소개가 없습니다.';
-  const leaderReviews = project.creator.review_count || 0;
   const detailExplanation = project.user_match_explanation?.for_detail_page;
 
   return (

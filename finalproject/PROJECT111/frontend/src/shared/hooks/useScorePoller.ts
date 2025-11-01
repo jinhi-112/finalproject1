@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/api';
-
-interface Project {
-  project_id: number;
-  user_matching_rate: number | null;
-  // Add other project fields if necessary for type safety
-}
+import type { Project } from '../types/project';
 
 export const useScorePoller = (initialProjects: Project[], onUpdate: (updatedProject: Project) => void) => {
   const [pollingIds, setPollingIds] = useState<Set<number>>(new Set());
@@ -35,7 +30,6 @@ export const useScorePoller = (initialProjects: Project[], onUpdate: (updatedPro
       intervalRef.current = setInterval(async () => {
         console.log(`Polling for scores for projects: ${[...pollingIds].join(', ')}`);
         const currentIds = Array.from(pollingIds);
-        let updatedInThisCycle = false;
 
         for (const id of currentIds) {
           try {
@@ -51,7 +45,6 @@ export const useScorePoller = (initialProjects: Project[], onUpdate: (updatedPro
                   newSet.delete(id);
                   return newSet;
               });
-              updatedInThisCycle = true;
             }
           } catch (error) {
             console.error(`Failed to poll for project ${id}:`, error);

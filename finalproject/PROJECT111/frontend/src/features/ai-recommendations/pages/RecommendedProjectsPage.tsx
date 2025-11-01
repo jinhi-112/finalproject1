@@ -1,10 +1,51 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getRecommendedProjects } from '../../../api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, type NavigateFunction } from 'react-router-dom';
+import type { Project } from '../../../shared/types/project';
+
+// --- Interfaces ---
+
+interface RecommendedProjectData {
+  project: Project;
+  score: number;
+  explanation?: {
+    for_recommendation_page: {
+      primary_reason: string;
+      additional_reasons: string[];
+    };
+  };
+}
+
+interface UserProfile {
+  tech_stack?: string[];
+  preferred_team_size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  availability_period?: 'SHORT' | 'MEDIUM' | 'LONG';
+}
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: string;
+  unit: string;
+  onClick: () => void;
+  isActive: boolean;
+}
+
+interface TechTagProps {
+  text: string;
+  isPrimary?: boolean;
+}
+
+interface ProjectCardProps {
+  projectData: RecommendedProjectData;
+  userProfile: UserProfile | null;
+  rank: number;
+  navigate: NavigateFunction;
+}
 
 // --- Helper Components ---
 
-const StatCard = ({ title, value, icon, unit, onClick, isActive }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, unit, onClick, isActive }) => (
     <button 
         onClick={onClick} 
         className={`w-full text-left rounded-lg shadow-sm transition-all duration-200 ${isActive ? 'ring-2 ring-blue-500' : 'ring-1 ring-gray-200 hover:ring-blue-400'}`}>
@@ -18,14 +59,14 @@ const StatCard = ({ title, value, icon, unit, onClick, isActive }) => (
     </button>
 );
 
-const TechTag = ({ text, isPrimary = false }) => (
+const TechTag: React.FC<TechTagProps> = ({ text, isPrimary = false }) => (
     <span className={`text-xs font-medium mr-2 px-2.5 py-1 rounded-md ${isPrimary ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
         {text}
         {isPrimary && <span className="text-yellow-500 ml-1">⭐</span>}
     </span>
 );
 
-const ProjectCard = ({ projectData, userProfile, rank }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ projectData, userProfile, rank, navigate }) => {
   const { project, score, explanation } = projectData;
 
   const recommendation = explanation?.for_recommendation_page;
@@ -40,7 +81,7 @@ const ProjectCard = ({ projectData, userProfile, rank }) => {
     [projectTech, userTech]
   );
 
-  const getScoreInfo = (score) => {
+  const getScoreInfo = (score: number) => {
       if (score >= 85) {
         return { text: '높음', color: 'text-green-600', bg: 'bg-green-100' };
       }
@@ -112,16 +153,16 @@ const ProjectCard = ({ projectData, userProfile, rank }) => {
 
       <div className="mt-6 flex justify-between items-center">
         <Link to={`/projects/${project.project_id}`} className="text-sm font-medium text-blue-600 hover:underline">상세 보기 &gt;</Link>
-        <button className="px-6 py-2 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900">지원하기</button>
+        <button onClick={() => navigate(`/apply/${project.project_id}`)} className="px-6 py-2 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900">지원하기</button>
       </div>
     </div>
   );
 };
 
 // --- Filtering Helpers ---
-const isHighMatch = (p) => p.score >= 85;
+const isHighMatch = (p: RecommendedProjectData): boolean => p.score >= 85;
 
-const isTeamSizeFit = (p, userProfile) => {
+const isTeamSizeFit = (p: RecommendedProjectData, userProfile: UserProfile | null): boolean => {
     if (!userProfile?.preferred_team_size) return false;
     const preference = userProfile.preferred_team_size;
     const count = p.project.recruitment_count;
@@ -131,7 +172,7 @@ const isTeamSizeFit = (p, userProfile) => {
     return false;
 };
 
-const isPeriodFit = (p, userProfile) => {
+const isPeriodFit = (p: RecommendedProjectData, userProfile: UserProfile | null): boolean => {
     if (!userProfile?.availability_period) return false;
     const preference = userProfile.availability_period;
     const start = new Date(p.project.start_date);
@@ -143,7 +184,7 @@ const isPeriodFit = (p, userProfile) => {
     return false;
 };
 
-const isGrowthOpportunity = (p, userProfile) => {
+const isGrowthOpportunity = (p: RecommendedProjectData, userProfile: UserProfile | null): boolean => {
     if (!userProfile?.tech_stack) return false;
     const userTech = new Set(userProfile.tech_stack.map(t => t.toLowerCase()));
     const projectTech = p.project.tech_stack?.split(',').map(t => t.trim().toLowerCase()) || [];
@@ -154,12 +195,13 @@ const isGrowthOpportunity = (p, userProfile) => {
 // --- Main Page Component ---
 
 export const RecommendedProjectsPage: React.FC = () => {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [projects, setProjects] = useState<RecommendedProjectData[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recommendation');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -254,7 +296,7 @@ export const RecommendedProjectsPage: React.FC = () => {
         {!loading && !error && (
           <div>
             {sortedProjects.map((p, index) => (
-              <ProjectCard key={p.project.project_id} projectData={p} userProfile={userProfile} rank={index + 1} />
+              <ProjectCard key={p.project.project_id} projectData={p} userProfile={userProfile} rank={index + 1} navigate={navigate} />
             ))}
           </div>
         )}

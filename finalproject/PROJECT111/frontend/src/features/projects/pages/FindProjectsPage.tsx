@@ -4,24 +4,7 @@ import { Input } from "../../../shared/components/Input";
 import { Button } from "../../../shared/components/Button";
 import apiClient from "../../../api"; // Import apiClient
 import { Label } from "../../../shared/components/Label";
-
-// Define Project interface locally
-interface Project {
-  project_id: number;
-  creator: { user_id: number; name: string; email: string };
-  title: string;
-  description: string;
-  goal: string;
-  tech_stack: string;
-  recruitment_count: number;
-  start_date: string;
-  end_date: string;
-  matching_rate: number | null; // From Projects model
-  user_matching_rate: number | null; // From MatchScores
-  user_match_explanation?: string; // From MatchScores, optional for list view
-  is_open: boolean;
-  created_at: string;
-}
+import type { Project } from "../../../shared/types/project";
 
 interface ProjectListResponse {
   count: number;

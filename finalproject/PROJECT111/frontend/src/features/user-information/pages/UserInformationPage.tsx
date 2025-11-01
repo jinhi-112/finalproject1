@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Link } from 'react-router-dom';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Label } from '@/shared/components/Label';
@@ -47,10 +46,6 @@ const PROJECT_TOPIC_OPTIONS = [ { value: 'web', label: '웹 서비스' }, { valu
 const AVAILABILITY_PERIOD_OPTIONS = [ { value: 'SHORT', label: '단기: 1달 이내' }, { value: 'MEDIUM', label: '중기: 2~3달' }, { value: 'LONG', label: '장기: 3달 이상/기타' } ];
 
 // --- API Functions ---
-const fetchUserInfo = async () => {
-  const response = await apiClient.get('/user-info/');
-  return response.data;
-};
 
 const updateUserInfo = async (data: any) => {
   const response = await apiClient.put('/user-info/', data);

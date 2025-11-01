@@ -5,24 +5,7 @@ import { useAuth } from "../shared/contexts/AuthContext";
 import { Button } from "../shared/components/Button";
 import apiClient from "@/api";
 import { useScorePoller } from "@/shared/hooks/useScorePoller";
-
-// Define Project interface locally
-interface Project {
-  project_id: number;
-  creator: { user_id: number; name: string; email: string };
-  title: string;
-  description: string;
-  goal: string;
-  tech_stack: string;
-  recruitment_count: number;
-  start_date: string;
-  end_date: string;
-  matching_rate: number | null; // From Projects model
-  user_matching_rate: number | null; // From MatchScores
-  user_match_explanation?: string; // From MatchScores, optional for list view
-  is_open: boolean;
-  created_at: string;
-}
+import type { Project } from "../shared/types/project";
 
 const ProfileCompletionBanner = () => {
   const { user } = useAuth();
@@ -47,8 +30,6 @@ const ProfileCompletionBanner = () => {
 // ----------------------------------------------------------------
 export function MainPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true); // 로딩 상태 추가
   const { isAuthenticated } = useAuth(); // Get isAuthenticated from AuthContext
   const location = useLocation(); // Add useLocation hook
 
@@ -66,7 +47,6 @@ export function MainPage() {
     // 백엔드 API를 호출하는 함수
     const fetchProjects = async () => {
       try {
-        setLoading(true); // 데이터 요청 시작 시 로딩 상태를 true로 설정
         const response = await apiClient.get<{
           count: number;
           next: string | null;
@@ -80,9 +60,6 @@ export function MainPage() {
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "알 수 없는 에러가 발생했습니다.";
         console.error("API 호출 중 에러 발생:", errorMessage);
-        setError(`데이터를 불러오는 데 실패했습니다: ${errorMessage}`);
-      } finally {
-        setLoading(false); // 요청 완료 시 (성공/실패 모두) 로딩 상태를 false로 설정
       }
     };
 

@@ -1,18 +1,7 @@
 import { Link } from "react-router-dom";
-import { Button } from "../../../shared/components/Button";
+import type { Project } from "../../../shared/types/project";
 
 // This should eventually be moved to a shared types file
-interface Project {
-  project_id: number;
-  title: string;
-  description: string;
-  tech_stack: string; // Assuming it's a string for now
-  recruitment_count: number;
-  start_date: string;
-  end_date: string;
-  matching_rate: number;
-  user_matching_rate?: number; // New field
-}
 
 interface ProjectCardProps {
   project: Project;

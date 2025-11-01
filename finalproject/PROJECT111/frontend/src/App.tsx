@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import RegisterPage from "./features/auth/pages/RegisterPage";
 import LoginPage from "./features/auth/pages/LoginPage";
 import { UserInformationPage } from "./features/user-information/pages/UserInformationPage";
@@ -8,10 +8,10 @@ import { AuthGuard } from "./features/auth/guards/AuthGuard";
 import { ProjectDetailPage } from "./features/projects/pages/ProjectDetailPage";
 import { ProjectRegisterPage } from "./features/projects/pages/ProjectRegisterPage";
 import { FindProjectsPage } from "./features/projects/pages/FindProjectsPage";
-import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
+import { AuthProvider } from "./shared/contexts/AuthContext";
 import { MainPage } from "./pages/MainPage";
 import { RecommendedProjectsPage } from "./features/ai-recommendations/pages/RecommendedProjectsPage";
-
+import ApplicationFormPage from "./pages/ApplicationFormPage";
 
 
 function App() {
@@ -41,6 +41,11 @@ function App() {
               <Route path="/recommended-projects" element={
                 <AuthGuard>
                   <RecommendedProjectsPage />
+                </AuthGuard>
+              } />
+              <Route path="/apply/:projectId" element={
+                <AuthGuard>
+                  <ApplicationFormPage />
                 </AuthGuard>
               } />
             </Routes>
