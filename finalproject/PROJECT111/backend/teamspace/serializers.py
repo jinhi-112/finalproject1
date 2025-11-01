@@ -12,7 +12,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', 'name')
 
     def create(self, validated_data):
-        # Use the new custom manager's create_user method which handles hashing
+        # 해싱 다루기
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -38,18 +38,15 @@ class UsersSerializer(serializers.ModelSerializer):
         return ret
 
 
+from .tasks import precompute_matches_for_user_task, calculate_single_match_score_task
+from .ai_services import MatchService
+
 class ProjectSerializer(serializers.ModelSerializer):
     # creator 필드를 UsersSerializer로 중첩하여, 
     # 프로젝트 조회 시 생성자 정보도 함께 보여줍니다.
     creator = UsersSerializer(read_only=True)
     user_matching_rate = serializers.SerializerMethodField() # New field
     
-    # 생성/수정 요청 시 creator_id를 받기 위한 필드 (선택 사항)
-    # request에서 user를 직접 가져오는 것이 더 안전합니다.
-    # creator_id = serializers.PrimaryKeyRelatedField(
-    #     queryset=Users.objects.all(), source='creator', write_only=True, required=False
-    # )
-
     class Meta:
         model = Projects
         fields = [
@@ -58,31 +55,40 @@ class ProjectSerializer(serializers.ModelSerializer):
             'tech_stack', 'recruitment_count', 'start_date', 'end_date', 'application_deadline', 'matching_rate', 'is_open', 'created_at',
             'user_matching_rate' # Include the new field
         ]
-        # 'creator'는 read_only=True로 설정되어 GET 요청 시에만 상세 정보가 포함됩니다.
-        # POST/PUT 요청 시에는 ViewSet에서 creator를 직접 설정하는 것이 일반적입니다.
         read_only_fields = ['project_id', 'created_at']
 
     def get_user_matching_rate(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # Check if score is already passed in request context (from MatchedProjectListView)
+            # 요청 컨텍스트에서 이미 점수가 전달되었는지 확인(MatchedProjectListView에서)
             if hasattr(request, 'user_match_scores') and obj.project_id in request.user_match_scores:
                 return round(request.user_match_scores[obj.project_id], 2)
             
-            # Fallback: retrieve from MatchScores table
-            from .models import MatchScores # Import here to avoid circular dependency
+            # Fallback: MatchScores 테이블에서 가져오기
+            from .models import MatchScores # 순환 참조 피하기 위해 여기로 가져옴
             try:
                 match_score = MatchScores.objects.get(user=request.user, project=obj)
                 return round(match_score.score, 2)
             except MatchScores.DoesNotExist:
-                pass # No match score yet
+                pass # match score 아직 없음 
         return None
 
     def create(self, validated_data):
-        # ViewSet에서 request.user를 받아 creator를 설정하므로,
-        # validated_data에 creator가 이미 포함되어 있어야 합니다.
-        # 예: validated_data['creator'] = self.context['request'].user
-        return Projects.objects.create(**validated_data)
+        project = Projects.objects.create(**validated_data)
+        # Trigger background task to calculate score only for the creator
+        creator = self.context['request'].user
+        if creator and creator.is_authenticated:
+            calculate_single_match_score_task.delay(creator.pk, project.pk)
+        return project
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        # Trigger background task to recalculate score only for the creator
+        creator = self.context['request'].user
+        if creator and creator.is_authenticated:
+            MatchScores.objects.filter(user=creator, project=instance).delete()
+            calculate_single_match_score_task.delay(creator.pk, instance.pk)
+        return instance
 
 
 # Define choices at the module level
@@ -182,8 +188,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 defaults={'embedding': embedding_vector}
             )
 
-        # --- Invalidate old MatchScores to force recalculation ---
+        # --- Invalidate old MatchScores and trigger background recalculation ---
         MatchScores.objects.filter(user=instance).delete()
+        from .tasks import precompute_matches_for_user_task
+        precompute_matches_for_user_task.delay(instance.pk)
 
         return instance
 
@@ -224,3 +232,8 @@ class ProjectDetailSerializer(ProjectSerializer):
 
     def get_applicant_count(self, obj) -> int:
         return ProjectApplicants.objects.filter(project=obj).count()
+
+class RecommendedProjectSerializer(serializers.Serializer):
+    project = ProjectDetailSerializer()
+    score = serializers.FloatField()
+    explanation = serializers.JSONField()

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import LoginView, RegisterView, ProjectListView, UserProfileView, LogoutView, ProjectSearchView, MatchProjectUserView, ProjectDetailView, MatchedProjectListView, ProjectApplyView # Added ProjectApplyView
+from .views import LoginView, RegisterView, ProjectListView, UserProfileView, LogoutView, ProjectSearchView, MatchProjectUserView, ProjectDetailView, MatchedProjectListView, ProjectApplyView, RecommendedProjectListView # Added ProjectApplyView
 
 router = DefaultRouter()
 
@@ -14,6 +14,7 @@ urlpatterns = [
     
     # Project related URLs
     path('projects/search/', ProjectSearchView.as_view(), name='project-search'),
+    path('projects/recommended/', RecommendedProjectListView.as_view(), name='project-recommended-list'),
     path('projects/<int:project_id>/apply/', ProjectApplyView.as_view(), name='project-apply'),
     path('projects/<int:project_id>/', ProjectDetailView.as_view(), name='project-detail'),
     path('projects/', ProjectListView.as_view(), name='project-list'),

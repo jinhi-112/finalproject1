@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404, RetrieveAPIView, ListAPIView
+from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404, RetrieveAPIView # Added RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -20,7 +20,6 @@ from .serializers import (
     UserProfileSerializer,
     UserRegistrationSerializer,
     ProjectDetailSerializer, # Added ProjectDetailSerializer
-    RecommendedProjectSerializer
 )
 import logging
 
@@ -55,8 +54,6 @@ class ProjectApplyView(APIView):
 # 로그인 / 로그아웃 / 회원가입
 # ----------------------
 
-from .tasks import precompute_matches_for_user_task
-
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -65,9 +62,6 @@ class LoginView(APIView):
         password = request.data.get('password')
         user = authenticate(request, email=email, password=password)
         if user is not None:
-            # Trigger background task to pre-compute matches
-            precompute_matches_for_user_task.delay(user.pk)
-            
             refresh = RefreshToken.for_user(user)
             serializer = UsersSerializer(user)
             return Response({
@@ -117,7 +111,7 @@ class ProjectListView(ListCreateAPIView):
     serializer_class = ProjectSerializer
     pagination_class = ProjectResultsPagination # Add pagination
 
-    def get_permissions(self):
+    def get_permissions(self): # Added get_permissions method
         if self.request.method == 'GET':
             return [AllowAny()]
         return [IsAuthenticated()]
@@ -312,27 +306,6 @@ def match_project_users(request, project_id):
     return Response({'project_id': project_id, 'matches': match_results})
 
 
-class RecommendedProjectListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        user = self.request.user
-        if not user.is_authenticated:
-            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # Get recommended projects data from the service
-        recommended_projects_data = MatchService.get_recommended_projects(user)
-
-        # Serialize the data
-        project_serializer = RecommendedProjectSerializer(recommended_projects_data, many=True, context={'request': request})
-
-        # Get user profile for the response
-        user_serializer = UserProfileSerializer(user)
-
-        return Response({
-            'user_profile': user_serializer.data,
-            'recommended_projects': project_serializer.data
-        })
 
 
 

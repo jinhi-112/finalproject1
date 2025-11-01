@@ -186,7 +186,7 @@ class MatchScores(models.Model):
     tech_score = models.IntegerField(default=0)
     personality_score = models.IntegerField(default=0)
     experience_score = models.IntegerField(default=0)
-    explanation = models.TextField(null=True, blank=True) # New field for GPT explanation
+    explanation = models.JSONField(null=True, blank=True) # New field for GPT explanation
     evaluated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

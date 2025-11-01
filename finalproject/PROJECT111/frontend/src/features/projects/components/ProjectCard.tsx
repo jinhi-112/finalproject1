@@ -41,14 +41,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <h5 className="text-lg font-extrabold text-slate-800 tracking-tight">
               {project.title}
             </h5>
-            {project.user_matching_rate !== undefined && project.user_matching_rate !== null && (
+            {project.user_matching_rate !== undefined && project.user_matching_rate !== null ? (
               <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                 </svg>
-                <span className="font-bold text-sm">{project.user_matching_rate}%</span>
+                {project.user_matching_rate > 0 ? (
+                    <span className="font-bold text-sm">{project.user_matching_rate}%</span>
+                ) : (
+                    <span className="font-bold text-xs">계산 중...</span>
+                )}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Tech Tags */}

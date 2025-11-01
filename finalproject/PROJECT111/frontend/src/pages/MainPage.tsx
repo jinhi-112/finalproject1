@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ProjectCard } from "../features/projects/components/ProjectCard";
-import { getMatchedProjects } from '../api'; // Import getMatchedProjects
-import { useAuth } from "../shared/contexts/AuthContext"; // Import useAuth
+import { useAuth } from "../shared/contexts/AuthContext";
 import { Button } from "../shared/components/Button";
 import apiClient from "@/api";
+import { useScorePoller } from "@/shared/hooks/useScorePoller";
 
 // Define Project interface locally
 interface Project {
@@ -52,13 +52,21 @@ export function MainPage() {
   const { isAuthenticated } = useAuth(); // Get isAuthenticated from AuthContext
   const location = useLocation(); // Add useLocation hook
 
+  const handleScoreUpdate = useCallback((updatedProject: Project) => {
+    setProjects(prevProjects => 
+      prevProjects.map(p => 
+        p.project_id === updatedProject.project_id ? updatedProject : p
+      )
+    );
+  }, []);
+
+  useScorePoller(projects, handleScoreUpdate);
+
   useEffect(() => {
-    console.log("MainPage useEffect triggered by location or auth change");
     // 백엔드 API를 호출하는 함수
     const fetchProjects = async () => {
       try {
         setLoading(true); // 데이터 요청 시작 시 로딩 상태를 true로 설정
-        // Always fetch generic projects for the main page for now
         const response = await apiClient.get<{
           count: number;
           next: string | null;
@@ -68,7 +76,6 @@ export function MainPage() {
         const fetchedProjects = response.data.results || [];
         
         setProjects(fetchedProjects); 
-        console.log("MainPage: Projects state set to", fetchedProjects);
         
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "알 수 없는 에러가 발생했습니다.";

@@ -15,6 +15,9 @@ export function Header() {
       {/* Center Navigation */}
       <nav className="hidden md:flex gap-8">
         <Link to="/find-projects" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">프로젝트 찾기</Link>
+        {isAuthenticated && (
+          <Link to="/recommended-projects" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">AI 추천</Link>
+        )}
         <Link to="/register-project" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">프로젝트 등록</Link>
         <Link to="/about" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">서비스 소개</Link>
         <Link to="/faq" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">자주 묻는 질문</Link>

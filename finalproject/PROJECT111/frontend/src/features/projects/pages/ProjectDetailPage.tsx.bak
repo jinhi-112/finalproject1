@@ -24,16 +24,7 @@ interface Project {
   application_deadline: string | null;
   applicant_count: number;
   user_matching_rate: number | null;
-  user_match_explanation?: {
-      for_recommendation_page: {
-          primary_reason: string;
-          additional_reasons: string[];
-      };
-      for_detail_page: {
-          positive_points: string[];
-          negative_points: string[];
-      };
-  };
+  user_match_explanation?: string;
   user_match_scores?: {
     tech: number;
     personality: number;
@@ -129,7 +120,6 @@ export function ProjectDetailPage() {
   const leaderRole = project.creator.specialty?.[0] || '미지정';
   const leaderBio = project.creator.introduction || '자기소개가 없습니다.';
   const leaderReviews = project.creator.review_count || 0;
-  const detailExplanation = project.user_match_explanation?.for_detail_page;
 
   return (
     <div className="bg-slate-50 p-4 sm:p-6 lg:p-8">
@@ -213,7 +203,7 @@ export function ProjectDetailPage() {
                   <p className="text-sm text-center text-slate-500 py-4">세부 매칭 점수를 분석 중입니다...</p>
                 )}
               </div>
-              {detailExplanation && (
+              {project.user_match_explanation && (
                 <div className="mt-4 text-center">
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
@@ -223,22 +213,9 @@ export function ProjectDetailPage() {
                   </button>
                 </div>
               )}
-              {showTooltip && detailExplanation && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-lg space-y-4">
-                    <div>
-                        <h4 className="font-semibold text-green-600">👍 긍정적 요인</h4>
-                        <ul className="list-disc list-inside text-sm text-slate-800 mt-1 space-y-1">
-                            {detailExplanation.positive_points?.map((point, i) => <li key={`pos-${i}`}>{point}</li>)}
-                        </ul>
-                    </div>
-                    {detailExplanation.negative_points?.length > 0 && (
-                        <div>
-                            <h4 className="font-semibold text-red-600">👎 아쉬운 점</h4>
-                            <ul className="list-disc list-inside text-sm text-slate-800 mt-1 space-y-1">
-                                {detailExplanation.negative_points?.map((point, i) => <li key={`neg-${i}`}>{point}</li>)}
-                            </ul>
-                        </div>
-                    )}
+              {showTooltip && project.user_match_explanation && (
+                <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-800">{project.user_match_explanation}</p>
                 </div>
               )}
             </div>

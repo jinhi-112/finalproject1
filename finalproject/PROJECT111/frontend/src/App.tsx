@@ -10,6 +10,7 @@ import { ProjectRegisterPage } from "./features/projects/pages/ProjectRegisterPa
 import { FindProjectsPage } from "./features/projects/pages/FindProjectsPage";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
 import { MainPage } from "./pages/MainPage";
+import { RecommendedProjectsPage } from "./features/ai-recommendations/pages/RecommendedProjectsPage";
 
 
 
@@ -37,6 +38,11 @@ function App() {
                 </AuthGuard>
               } />
               <Route path="/find-projects" element={<FindProjectsPage />} />
+              <Route path="/recommended-projects" element={
+                <AuthGuard>
+                  <RecommendedProjectsPage />
+                </AuthGuard>
+              } />
             </Routes>
           </Body>
         </div>

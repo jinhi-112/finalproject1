@@ -91,3 +91,8 @@ export const getProjectDetail = async (projectId: number): Promise<any> => {
   const response = await apiClient.get<any>(`/projects/${projectId}/`);
   return response.data;
 };
+
+export const getRecommendedProjects = async (): Promise<any[]> => {
+    const response = await apiClient.get<any[]>('/projects/recommended/');
+    return response.data;
+};
