@@ -8,7 +8,7 @@ import { Label } from "../../../shared/components/Label";
 import { ErrorMessage } from "./ErrorMessage";
 import { Button } from "../../../shared/components/Button";
 import { Modal } from '../../../shared/components/Modal'; // New import
-import apiClient from '../../../api';
+import apiClient from '@/api';
 
 const schema = yup.object().shape({
   email: yup.string().email("이메일 형식이 아닙니다.").required("필수 입력"),

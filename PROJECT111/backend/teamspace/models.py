@@ -139,14 +139,22 @@ class Projects(models.Model):
     title = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
     goal = models.TextField(null=True, blank=True)
-    tech_stack = models.TextField(null=True, blank=True)
-    recruitment_count = models.IntegerField(default=0)  # 모집인원
-    start_date = models.DateField(null=True, blank=True)  # 기간 (시작)
-    end_date = models.DateField(null=True, blank=True)  # 기간 (종료)
-    application_deadline = models.DateField(null=True, blank=True) # 지원 마감일
-    matching_rate = models.FloatField(null=True, blank=True)  # 매칭률
+    tech_stack = models.JSONField(default=list)
+    recruitment_count = models.IntegerField(default=0)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    application_deadline = models.DateField(null=True, blank=True)
+    matching_rate = models.FloatField(null=True, blank=True)
     is_open = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # 이 status 필드만 추가 (프론트에서 필요하므로)
+    STATUS_CHOICES = [
+        ('active', '진행중'),
+        ('completed', '완료'),
+        ('draft', '임시저장'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
 
     class Meta:
         db_table = 'Projects'
@@ -154,6 +162,7 @@ class Projects(models.Model):
 
     def __str__(self):
         return self.title
+
 
 
 class Teams(models.Model):
@@ -251,3 +260,4 @@ class ProjectApplicants(models.Model):
     class Meta:
         db_table = 'ProjectApplicants'
         unique_together = ('user', 'project')
+

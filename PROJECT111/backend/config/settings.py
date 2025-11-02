@@ -39,16 +39,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # ✅ 반드시 최상단
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -78,7 +77,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'sideproj',
         'USER': 'root',
-        'PASSWORD': 'dpfqkfkrl',
+        'PASSWORD': 'yujung1004!A',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }
@@ -140,7 +139,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",   # ⚠️ 지금 프론트가 5174에서 실행 중!
+    "http://127.0.0.1:5174",
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # Django REST Framework
@@ -186,3 +190,6 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# SBERT Model Path
+SBERT_MODEL_PATH = os.path.join(BASE_DIR, 'output', 'my_sbert_model')

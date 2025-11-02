@@ -1,8 +1,20 @@
 from rest_framework import serializers
 from typing import Optional
 from django.contrib.auth.hashers import make_password
-from .models import User, Projects, ProjectApplicants, Evaluations
+from .models import (
+    User, 
+    Projects, 
+    ProjectApplicants, 
+    Evaluations, 
+    UserEmbedding, 
+    MatchScores, 
+)
+from .ai_services import generate_embedding
 
+
+# ----------------------------
+# 회원가입 (User Registration)
+# ----------------------------
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -11,68 +23,68 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', 'name')
 
     def create(self, validated_data):
-        # Use the new custom manager's create_user method which handles hashing
         user = User.objects.create_user(**validated_data)
         return user
 
-# (참고: Users 모델의 상세 정보가 필요하다면 UsersSerializer도 정의할 수 있습니다.)
+
+# ----------------------------
+# 사용자 기본 정보
+# ----------------------------
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
             'user_id', 'name', 'email', 
-            'specialty', 'introduction'
+            'specialty', 'introduction',
+            'is_profile_complete'
         ]
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        value = getattr(instance, 'specialty')
+        ret['specialty'] = value.split(',') if value else []
+        return ret
 
+
+# ----------------------------
+# 프로젝트 (Projects)
+# ----------------------------
 class ProjectSerializer(serializers.ModelSerializer):
-    # creator 필드를 UsersSerializer로 중첩하여, 
-    # 프로젝트 조회 시 생성자 정보도 함께 보여줍니다.
     creator = UsersSerializer(read_only=True)
-    user_matching_rate = serializers.SerializerMethodField() # New field
-    
-    # 생성/수정 요청 시 creator_id를 받기 위한 필드 (선택 사항)
-    # request에서 user를 직접 가져오는 것이 더 안전합니다.
-    # creator_id = serializers.PrimaryKeyRelatedField(
-    #     queryset=Users.objects.all(), source='creator', write_only=True, required=False
-    # )
+    user_matching_rate = serializers.SerializerMethodField()
 
     class Meta:
         model = Projects
         fields = [
             'project_id', 'creator', 
             'title', 'description', 'goal', 
-            'tech_stack', 'recruitment_count', 'start_date', 'end_date', 'application_deadline', 'matching_rate', 'is_open', 'created_at',
-            'user_matching_rate' # Include the new field
+            'tech_stack', 'recruitment_count', 
+            'start_date', 'end_date', 
+            'application_deadline', 'matching_rate', 
+            'is_open', 'created_at',
+            'user_matching_rate'
         ]
-        # 'creator'는 read_only=True로 설정되어 GET 요청 시에만 상세 정보가 포함됩니다.
-        # POST/PUT 요청 시에는 ViewSet에서 creator를 직접 설정하는 것이 일반적입니다.
         read_only_fields = ['project_id', 'created_at']
 
     def get_user_matching_rate(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # Check if score is already passed in request context (from MatchedProjectListView)
             if hasattr(request, 'user_match_scores') and obj.project_id in request.user_match_scores:
                 return round(request.user_match_scores[obj.project_id], 2)
-            
-            # Fallback: retrieve from MatchScores table
-            from .models import MatchScores # Import here to avoid circular dependency
             try:
                 match_score = MatchScores.objects.get(user=request.user, project=obj)
                 return round(match_score.score, 2)
             except MatchScores.DoesNotExist:
-                pass # No match score yet
+                pass
         return None
 
     def create(self, validated_data):
-        # ViewSet에서 request.user를 받아 creator를 설정하므로,
-        # validated_data에 creator가 이미 포함되어 있어야 합니다.
-        # 예: validated_data['creator'] = self.context['request'].user
         return Projects.objects.create(**validated_data)
 
 
-# Define choices at the module level
+# ----------------------------
+# 선택지 정의
+# ----------------------------
 SPECIALTY_CHOICES = [
     ('frontend', '프론트엔드'), ('backend', '백엔드'), ('ai', 'AI/머신러닝'),
     ('app', '앱 개발'), ('game', '게임 개발'), ('data', '데이터 분석'),
@@ -98,8 +110,11 @@ PROJECT_TOPIC_CHOICES = [
     ('other', '기타')
 ]
 
+
+# ----------------------------
+# 사용자 프로필 (User Profile)
+# ----------------------------
 class UserProfileSerializer(serializers.ModelSerializer):
-    # Fields that handle list-to-string conversion
     available_region = serializers.MultipleChoiceField(
         choices=User.KOREAN_REGIONS, allow_empty=True, required=False
     )
@@ -128,41 +143,59 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['email']
 
     def to_representation(self, instance):
-        """Convert comma-separated strings from model to lists for API output."""
         ret = super().to_representation(instance)
         list_fields = ['available_region', 'specialty', 'tech_stack', 'collaboration_tools', 'preferred_project_topics']
         for field in list_fields:
             value = getattr(instance, field)
-            if value:
-                ret[field] = value.split(',')
-            else:
-                ret[field] = []
+            ret[field] = value.split(',') if value else []
         return ret
 
     def update(self, instance, validated_data):
-        """Convert lists from API input to comma-separated strings for model."""
         list_fields = ['available_region', 'specialty', 'tech_stack', 'collaboration_tools', 'preferred_project_topics']
         for field in list_fields:
             if field in validated_data:
-                setattr(instance, field, ",".join(validated_data.pop(field)))
+                validated_data[field] = ",".join(validated_data[field])
 
-        # Set profile completion flag
         validated_data['is_profile_complete'] = True
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+
+        # 사용자 임베딩 재계산
+        embedding_text = f"""{instance.introduction or ''} 
+        전문 분야: {instance.specialty or ''} 
+        기술: {instance.tech_stack or ''} 
+        전공: {instance.major or ''} 
+        경험: {instance.experience_level or ''} 
+        협업 스타일: {instance.collaboration_style or ''} 
+        선호 프로젝트: {instance.preferred_project_topics or ''}"""
+
+        embedding_vector = generate_embedding(embedding_text)
+        if embedding_vector:
+            UserEmbedding.objects.update_or_create(
+                user=instance,
+                defaults={'embedding': embedding_vector}
+            )
+
+        # 기존 매칭 점수 삭제
+        MatchScores.objects.filter(user=instance).delete()
+        return instance
 
 
+# ----------------------------
+# 프로젝트 상세 (Detail View)
+# ----------------------------
 class ProjectDetailSerializer(ProjectSerializer):
     user_match_explanation = serializers.SerializerMethodField()
     user_match_scores = serializers.SerializerMethodField()
     applicant_count = serializers.SerializerMethodField()
 
     class Meta(ProjectSerializer.Meta):
-        fields = ProjectSerializer.Meta.fields + ['user_match_explanation', 'user_match_scores', 'applicant_count']
+        fields = ProjectSerializer.Meta.fields + [
+            'user_match_explanation', 'user_match_scores', 'applicant_count'
+        ]
 
     def get_user_match_explanation(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            from .models import MatchScores # Import here to avoid circular dependency
             try:
                 match_score = MatchScores.objects.get(user=request.user, project=obj)
                 return match_score.explanation
@@ -173,7 +206,6 @@ class ProjectDetailSerializer(ProjectSerializer):
     def get_user_match_scores(self, obj) -> Optional[dict]:
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            from .models import MatchScores # Import here to avoid circular dependency
             try:
                 match_score = MatchScores.objects.get(user=request.user, project=obj)
                 return {
@@ -187,3 +219,27 @@ class ProjectDetailSerializer(ProjectSerializer):
 
     def get_applicant_count(self, obj) -> int:
         return ProjectApplicants.objects.filter(project=obj).count()
+
+
+# ----------------------------
+# 지원자 관리 (Applicants)
+# ----------------------------
+#class ApplicantsSerializer(serializers.ModelSerializer):
+    #applicant_name = serializers.CharField(source="user.name", read_only=True)
+    #applicant_email = serializers.CharField(source="user.email", read_only=True)
+
+    #class Meta:
+        #model = Applicants
+        #fields = [
+            #"id",
+            #"applicant_name",
+            #"applicant_email",
+            #"tech_match",
+            #"exp_match",
+            #"time_match",
+            #"match_rate",
+            #"motivation",
+            #"status",
+            #"hours",
+            #"created_at",
+        #]

@@ -25,6 +25,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+
+
 # ----------------------
 # 지원하기
 # ----------------------
@@ -106,6 +109,7 @@ class ProjectListView(ListCreateAPIView):
     # permission_classes = [IsAuthenticated] # Remove this line
     queryset = Projects.objects.all()
     serializer_class = ProjectSerializer
+    pagination_class = ProjectResultsPagination # Add pagination
 
     def get_permissions(self): # Added get_permissions method
         if self.request.method == 'GET':
@@ -301,7 +305,44 @@ def match_project_users(request, project_id):
     # DRF의 Response 객체를 사용하는 것이 일관성에 좋습니다.
     return Response({'project_id': project_id, 'matches': match_results})
 
+# ----------------------
+# 내 프로젝트 관리 페이지용 API
+# ----------------------
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_projects(request):
+    user = request.user
+    projects = Projects.objects.filter(creator=user).order_by('-created_at')
+
+    data = []
+    for p in projects:
+        data.append({
+            "project_id": p.project_id,
+            "title": p.title,
+            "description": p.description,
+            "tech_stack": p.tech_stack,
+            "recruitment_count": p.recruitment_count,
+            "status": p.status,
+            "views": p.views if hasattr(p, "views") else 0,
+            "applicants_count": p.projectapplicants_set.count() if hasattr(p, "projectapplicants_set") else 0,
+            "ai_recommended_count": MatchScores.objects.filter(project=p).count(),
+        })
+
+    summary = {
+        "active_projects": projects.filter(status="active").count(),
+        "total_applicants": sum([d["applicants_count"] for d in data]),
+        "ai_candidates": sum([d["ai_recommended_count"] for d in data]),
+        "total_views": sum([d["views"] for d in data]),
+    }
+
+    return Response({
+        "summary": summary,
+        "projects": data
+    })
 
 
 

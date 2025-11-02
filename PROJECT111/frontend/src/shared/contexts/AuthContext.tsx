@@ -1,23 +1,20 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import apiClient from '@/api';
 
-// Define the User interface
 interface User {
   user_id: number;
   email: string;
   name: string;
   is_profile_complete: boolean;
-  // Add other user fields that you expect from the API
   [key: string]: any;
 }
 
-// Define the shape of the AuthContext
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  refreshUser: () => Promise<void>; // Add refreshUser function
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   const fetchAndSetUser = async () => {
-    const accessToken = localStorage.getItem('accessToken');
+    const accessToken = localStorage.getItem('access'); // ✅ key 이름 통일
     if (accessToken) {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       try {
@@ -39,14 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Auth check failed, clearing tokens.", error);
-        logout(); // Use logout function to clear state and tokens
+        logout();
       }
     }
     return null;
   };
 
   useEffect(() => {
-    // This effect runs once on app startup to check for existing tokens
     fetchAndSetUser();
   }, []);
 
@@ -56,8 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.access && response.data.refresh) {
         const { access, refresh, user: userData } = response.data;
 
-        localStorage.setItem('accessToken', access);
-        localStorage.setItem('refreshToken', refresh);
+        // ✅ key 이름을 'access', 'refresh'로 변경 (api.ts와 동일하게)
+        localStorage.setItem('access', access);
+        localStorage.setItem('refresh', refresh);
 
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
@@ -71,8 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
     delete apiClient.defaults.headers.common['Authorization'];
     setUser(null);
     setIsAuthenticated(false);
