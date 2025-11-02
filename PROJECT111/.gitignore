@@ -1,0 +1,26 @@
+# Python / Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+.venv/
+venv/
+
+# Node.js / Frontend
+node_modules/
+dist/
+.npm
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE / OS specific
+.idea/
+.vscode/
+.DS_Store
