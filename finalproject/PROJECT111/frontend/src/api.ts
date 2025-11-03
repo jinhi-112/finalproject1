@@ -29,7 +29,7 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
         try {
-          const resp = await api.post("/token/refresh/", {
+          const resp = await apiClient.post("/token/refresh/", {
             refresh: refreshToken,
           });
 
