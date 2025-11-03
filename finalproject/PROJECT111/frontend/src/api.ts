@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://afternoon-woodland-00819-a3f52d5ea68c.herokuapp.com/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
 });
 
 // Request: add access token
