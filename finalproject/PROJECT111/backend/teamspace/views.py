@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticate
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Projects, User, ProjectEmbedding, UserEmbedding, MatchScores, ProjectApplicants
+from .models import Projects, User, ProjectEmbedding, UserEmbedding, MatchScores, ProjectApplicants, Notifications
 from .ai_services import MatchService # Import MatchService
 from .ai_services import calculate_similarity, generate_match_explanation, generate_embedding # Added generate_embedding
 from .serializers import (
