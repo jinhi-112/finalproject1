@@ -5,5 +5,6 @@
       "use": "@vercel/static-build",
       "config": { "distDir": "dist" }
     }
-  ]
+  ],
+  "outputDirectory": "finalproject/PROJECT111/frontend/dist"
 }
