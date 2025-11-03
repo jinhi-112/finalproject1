@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://ai-project-matching-9f4105dc2f94.herokuapp.com/api",
+  baseURL: "https://afternoon-woodland-00819-a3f52d5ea68c.herokuapp.com/api",
 });
 
 // Request: add access token
