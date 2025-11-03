@@ -1,0 +1,8 @@
+{
+  "builds": [
+    {
+      "src": "finalproject/PROJECT111/frontend/package.json",
+      "use": "@vercel/static-build"
+    }
+  ]
+}
