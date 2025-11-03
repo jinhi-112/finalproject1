@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -244,10 +243,47 @@ class ProjectEmbedding(models.Model):
 
 
 class ProjectApplicants(models.Model):
+    STATUS_CHOICES = (
+        ('검토 대기', 'Pending Review'),
+        ('검토 완료', 'Reviewed'),
+        ('승인', 'Accepted'),
+        ('거절', 'Rejected'),
+    )
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     project = models.ForeignKey(Projects, on_delete=models.CASCADE)
+    
+    # Fields from application form
+    role = models.CharField(max_length=100, default='N/A')
+    motivation = models.TextField(blank=True)
+    available_time = models.CharField(max_length=50, blank=True)
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='검토 대기')
     applied_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'ProjectApplicants'
         unique_together = ('user', 'project')
+
+class Notifications(models.Model):
+    NOTIFICATION_TYPES = (
+        ('PROJECT_INVITE', 'Project Invite'),
+        ('APPLICATION_ACCEPTED', 'Application Accepted'),
+        ('APPLICATION_REJECTED', 'Application Rejected'),
+    )
+
+    notification_id = models.AutoField(primary_key=True)
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_notifications', null=True, blank=True)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
+    related_project = models.ForeignKey(Projects, on_delete=models.CASCADE, null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'Notifications'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification for {self.recipient.name} - Type: {self.notification_type}"

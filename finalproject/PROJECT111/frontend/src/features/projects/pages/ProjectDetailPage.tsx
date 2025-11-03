@@ -102,7 +102,6 @@ export function ProjectDetailPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-md">웹 애플리케이션</span>
                     <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-md">모집 중</span>
                   </div>
                   <h1 className="text-3xl font-bold text-slate-900 mb-2">{project.title}</h1>

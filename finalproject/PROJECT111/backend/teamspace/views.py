@@ -1,14 +1,17 @@
 from django.http import JsonResponse
-from django.contrib.auth import authenticate
-from rest_framework.generics import ListAPIView
-from .models import Projects
-from .serializers import ProjectSerializer
-from rest_framework import status
+from django.http import HttpResponse
+from .models import MatchScores
 from rest_framework.decorators import api_view
+
+@api_view(['GET'])
+def clear_match_scores(request):
+    count, _ = MatchScores.objects.all().delete()
+    return HttpResponse(f"Deleted {count} MatchScores entries.")
 from rest_framework.response import Response
+from rest_framework import status # Added status
 from rest_framework.views import APIView
-from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404, RetrieveAPIView, ListAPIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.generics import RetrieveUpdateAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404, RetrieveAPIView, ListAPIView
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -19,8 +22,10 @@ from .serializers import (
     UsersSerializer,
     UserProfileSerializer,
     UserRegistrationSerializer,
-    ProjectDetailSerializer, # Added ProjectDetailSerializer
-    RecommendedProjectSerializer
+    ProjectSerializer,
+    ProjectDetailSerializer,
+    RecommendedProjectSerializer,
+    NotificationSerializer # Added NotificationSerializer
 )
 import logging
 
@@ -39,14 +44,25 @@ class ProjectApplyView(APIView):
         project = get_object_or_404(Projects, pk=project_id)
         user = request.user
 
-        # 이미 지원했는지 확인
-        applicant, created = ProjectApplicants.objects.get_or_create(
+        # Get data from request
+        role = request.data.get('role')
+        motivation = request.data.get('motivation')
+        available_time = request.data.get('available_time')
+
+        # Use update_or_create to handle application and save data
+        applicant, created = ProjectApplicants.objects.update_or_create(
             user=user,
-            project=project
+            project=project,
+            defaults={
+                'role': role,
+                'motivation': motivation,
+                'available_time': available_time,
+                'status': '검토 대기' # Set status on new application
+            }
         )
 
         if not created:
-            return Response({"message": "이미 이 프로젝트에 지원했습니다." }, status=status.HTTP_409_CONFLICT)
+            return Response({"message": "지원 정보가 성공적으로 업데이트되었습니다."}, status=status.HTTP_200_OK)
 
         return Response({"message": "프로젝트에 성공적으로 지원했습니다."}, status=status.HTTP_201_CREATED)
 
@@ -55,6 +71,7 @@ class ProjectApplyView(APIView):
 # 로그인 / 로그아웃 / 회원가입
 # ----------------------
 
+from django.contrib.auth import authenticate # Added authenticate
 from .tasks import precompute_matches_for_user_task
 
 class LoginView(APIView):
@@ -125,6 +142,60 @@ class ProjectListView(ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
 
+
+class MyProjectListView(ListAPIView):
+    """
+    View to list projects created by the currently authenticated user,
+    with custom data structure including a summary.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProjectSerializer # Still useful for base serialization
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the projects
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        return Projects.objects.filter(creator=user).order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        
+        # --- Calculate Summary Data ---
+        active_projects = queryset.filter(is_open=True).count()
+        # Annotate each project with its applicant count
+        projects_with_applicants = queryset.annotate(num_applicants=Count('projectapplicants'))
+        total_applicants = sum(p.num_applicants for p in projects_with_applicants)
+        
+        summary_data = {
+            "active_projects": active_projects,
+            "total_applicants": total_applicants,
+        }
+
+        # --- Prepare Project List Data ---
+        projects_data = []
+        for project in projects_with_applicants: # Use the annotated queryset
+            # Base data from serializer
+            serializer = self.get_serializer(project)
+            data = serializer.data
+            
+            # Add missing/custom fields
+            data['status'] = 'active' if project.is_open else 'completed'
+            data['applicants_count'] = project.num_applicants # Use the annotated count
+            data['ai_recommended_count'] = 0 # Mocked
+            data['views'] = 0 # Mocked
+            
+            projects_data.append(data)
+
+        # --- Construct Final Response ---
+        response_data = {
+            "summary": summary_data,
+            "projects": projects_data
+        }
+        
+        return Response(response_data)
+
 class ProjectSearchView(ListAPIView):
     permission_classes = [AllowAny]
     queryset = Projects.objects.all() # This will be the base queryset
@@ -140,19 +211,23 @@ class ProjectSearchView(ListAPIView):
         return filter.qs
 
 
-class ProjectDetailView(RetrieveAPIView):
-    permission_classes = [AllowAny] # Allow anyone to view project details
+class ProjectDetailView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = Projects.objects.all()
-    serializer_class = ProjectDetailSerializer # Changed to ProjectDetailSerializer
-    lookup_field = 'project_id' # Use project_id from URL as lookup field
+    serializer_class = ProjectDetailSerializer
+    lookup_field = 'project_id'
 
     def get_object(self):
         obj = super().get_object()
         user = self.request.user
         if user.is_authenticated:
-            # Ensure match score and explanation are generated/updated
             MatchService.get_or_create_match_score(user, obj)
         return obj
+
+    def perform_destroy(self, instance):
+        if instance.creator != self.request.user:
+            raise PermissionDenied("You do not have permission to delete this project.")
+        instance.delete()
 
 
 from .ai_services import MatchService # Import MatchService
@@ -336,3 +411,226 @@ class RecommendedProjectListView(APIView):
 
 
 
+class RecommendTeammatesView(APIView):
+    """
+    Recommends teammates for a given project based on embedding similarity.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id, *args, **kwargs):
+        # 1. Get project and verify ownership
+        project = get_object_or_404(Projects, pk=project_id)
+        if project.creator != request.user:
+            return Response(
+                {"error": "You are not the creator of this project."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            project_embedding_obj = ProjectEmbedding.objects.get(project=project)
+            project_embedding = project_embedding_obj.embedding
+        except ProjectEmbedding.DoesNotExist:
+            return Response(
+                {"error": "Project embedding not found. The project may not have enough information."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Get candidate users (all users except creator and existing applicants)
+        existing_applicant_ids = ProjectApplicants.objects.filter(project=project).values_list('user_id', flat=True)
+        
+        candidate_users = User.objects.exclude(pk=request.user.pk).exclude(pk__in=existing_applicant_ids)
+        
+        all_user_embeddings = UserEmbedding.objects.filter(user__in=candidate_users).select_related('user')
+
+        # 3. Calculate match scores
+        match_results = []
+        for user_embedding_obj in all_user_embeddings:
+            user = user_embedding_obj.user
+            user_embedding = user_embedding_obj.embedding
+
+            if not user_embedding:
+                continue
+
+            similarity = calculate_similarity(project_embedding, user_embedding)
+            
+            # We can add more data to the response if needed
+            match_results.append({
+                'user': UsersSerializer(user).data,
+                'score': similarity * 100 # As percentage
+            })
+
+        # 4. Sort and return top 10
+        match_results.sort(key=lambda x: x['score'], reverse=True)
+
+        return Response(match_results[:10])
+
+class ProposeToProjectView(APIView):
+    """
+    Allows a project creator to send a project participation proposal to a user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id, *args, **kwargs):
+        # 1. Get project and verify ownership
+        project = get_object_or_404(Projects, pk=project_id)
+        if project.creator != request.user:
+            return Response(
+                {"error": "You are not the creator of this project."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Get target user from request body
+        target_user_id = request.data.get('user_id')
+        if not target_user_id:
+            return Response({"error": "user_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        target_user = get_object_or_404(User, pk=target_user_id)
+
+        # 3. Check for duplicate proposals
+        existing_notification = Notifications.objects.filter(
+            recipient=target_user,
+            related_project=project,
+            notification_type='PROJECT_INVITE'
+        ).exists()
+
+        if existing_notification:
+            return Response({"message": "A proposal has already been sent to this user for this project."}, status=status.HTTP_409_CONFLICT)
+
+        # 4. Create notification
+        message = f"'{project.creator.name}'님이 '{project.title}' 프로젝트에 참여를 제안했습니다."
+        
+        Notifications.objects.create(
+            recipient=target_user,
+            sender=request.user,
+            related_project=project,
+            notification_type='PROJECT_INVITE',
+            message=message
+        )
+
+        return Response({"message": "Project proposal sent successfully."}, status=status.HTTP_201_CREATED)
+
+class NotificationListView(ListAPIView):
+    """
+    Lists all notifications for the currently authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        """
+        This view should return a list of all notifications
+        for the currently authenticated user.
+        """
+        return Notifications.objects.filter(recipient=self.request.user)
+
+class NotificationReadView(APIView):
+    """
+    Marks a specific notification as read.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id, *args, **kwargs):
+        notification = get_object_or_404(Notifications, pk=notification_id)
+
+        # Check if the user is the recipient of the notification
+        if notification.recipient != request.user:
+            return Response(
+                {"error": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        notification.is_read = True
+        notification.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ProjectApplicantsListView(APIView):
+    """
+    View to list applicants for a given project.
+    Only the project creator can access this view.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id, *args, **kwargs):
+        # 1. Get project and verify ownership
+        project = get_object_or_404(Projects, pk=project_id)
+        if project.creator != request.user:
+            return Response(
+                {"error": "You are not the creator of this project."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Get all applicants for the project
+        applicants = ProjectApplicants.objects.filter(project=project).select_related('user')
+
+        # 3. Calculate summary
+        summary = {
+            'pending': applicants.filter(status='검토 대기').count(),
+            'reviewed': applicants.filter(status='검토 완료').count(),
+            'approved': applicants.filter(status='승인').count(),
+            'rejected': applicants.filter(status='거절').count(),
+        }
+
+        # 4. Serialize applicant data
+        serializer = ProjectApplicantSerializer(applicants, many=True, context={'request': request})
+        
+        # Manual transformation to match frontend expectations
+        serialized_applicants = []
+        for item in serializer.data:
+            applicant_data = {
+                'id': item['id'], # Use the ProjectApplicants PK as the main ID
+                'name': item['user']['name'],
+                'role': item['role'], # Use real role
+                'status': item['status'],
+                'date': item['applied_at'],
+                'hours': item['available_time'], # Use real available_time
+                'motivation': item['motivation'], # Use real motivation
+                'skills': item['user']['specialty'], # Mapping specialty to skills
+                'match_rate': item['match_scores']['match_rate'],
+                'tech_match': item['match_scores']['tech_match'],
+                'exp_match': item['match_scores']['exp_match'],
+                'time_match': item['match_scores']['time_match'],
+            }
+            serialized_applicants.append(applicant_data)
+
+        # 5. Construct final response
+        response_data = {
+            "summary": summary,
+            "applicants": serialized_applicants
+        }
+
+        return Response(response_data)
+
+class UpdateApplicantStatusView(APIView):
+    """
+    Updates the status of a project applicant.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, applicant_id, *args, **kwargs):
+        # 1. Get the applicant object
+        applicant = get_object_or_404(ProjectApplicants, pk=applicant_id)
+
+        # 2. Verify ownership/permission
+        if applicant.project.creator != request.user:
+            return Response(
+                {"error": "You do not have permission to change this applicant's status."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 3. Get and validate new status
+        new_status = request.data.get('status')
+        valid_statuses = [choice[0] for choice in ProjectApplicants.STATUS_CHOICES]
+        if not new_status or new_status not in valid_statuses:
+            return Response(
+                {"error": f"Invalid status. Must be one of {valid_statuses}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. Update and save
+        applicant.status = new_status
+        applicant.save()
+
+        # 5. Return success response with the updated applicant data
+        serializer = ProjectApplicantSerializer(applicant)
+        return Response(serializer.data)

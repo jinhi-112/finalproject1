@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from typing import Optional
 from django.contrib.auth.hashers import make_password
-from .models import User, Projects, ProjectApplicants, Evaluations, UserEmbedding, MatchScores
+from .models import User, Projects, ProjectApplicants, Evaluations, UserEmbedding, MatchScores, Notifications
 from .ai_services import generate_embedding
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -16,7 +16,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
-# (참고: Users 모델의 상세 정보가 필요하다면 UsersSerializer도 정의할 수 있습니다.)
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -37,6 +36,36 @@ class UsersSerializer(serializers.ModelSerializer):
             ret['specialty'] = []
         return ret
 
+class ProjectApplicantSerializer(serializers.ModelSerializer):
+    user = UsersSerializer(read_only=True)
+    match_scores = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectApplicants
+        fields = ['id', 'user', 'status', 'applied_at', 'match_scores', 'role', 'motivation', 'available_time']
+
+    def get_match_scores(self, obj):
+        # obj is the ProjectApplicants instance
+        try:
+            match = MatchScores.objects.get(user=obj.user, project=obj.project)
+            return {
+                'match_rate': match.score,
+                'tech_match': match.tech_score,
+                'exp_match': match.experience_score,
+                'time_match': match.personality_score, # Mapping personality_score to time_match as a guess
+            }
+        except MatchScores.DoesNotExist:
+            return {
+                'match_rate': 0,
+                'tech_match': 0,
+                'exp_match': 0,
+                'time_match': 0,
+            }
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notifications
+        fields = ['notification_id', 'recipient', 'sender', 'message', 'notification_type', 'related_project', 'is_read', 'created_at']
 
 from .tasks import precompute_matches_for_user_task, calculate_single_match_score_task
 from .ai_services import MatchService

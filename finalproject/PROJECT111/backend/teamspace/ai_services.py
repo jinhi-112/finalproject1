@@ -186,7 +186,10 @@ class MatchService:
             "goal": project.goal, "tech_stack": project.tech_stack,
         }
         
+        logger.info(f"User tech_stack before explanation generation: {user.tech_stack}") # ADDED LOGGING
+        logger.info(f"Generating match explanation for user {user.email} and project {project.title}")
         explanation_data = generate_match_explanation(user_data, project_data, match_score_entry.score)
+        logger.info(f"Generated explanation data: {explanation_data}")
         if explanation_data:
             match_score_entry.tech_score = explanation_data.get("tech_score", 0)
             match_score_entry.personality_score = explanation_data.get("personality_score", 0)

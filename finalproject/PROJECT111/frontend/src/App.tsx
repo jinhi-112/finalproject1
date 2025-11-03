@@ -12,6 +12,9 @@ import { AuthProvider } from "./shared/contexts/AuthContext";
 import { MainPage } from "./pages/MainPage";
 import { RecommendedProjectsPage } from "./features/ai-recommendations/pages/RecommendedProjectsPage";
 import ApplicationFormPage from "./pages/ApplicationFormPage";
+import ProjectManagePage from "./pages/ProjectManagePage";
+import ApplicantManagePage from "./pages/ApplicantManagePage";
+import ProjectEditPage from "./pages/ProjectEditPage";
 
 
 function App() {
@@ -46,6 +49,21 @@ function App() {
               <Route path="/apply/:projectId" element={
                 <AuthGuard>
                   <ApplicationFormPage />
+                </AuthGuard>
+              } />
+              <Route path="/project-management" element={
+                <AuthGuard>
+                  <ProjectManagePage />
+                </AuthGuard>
+              } />
+              <Route path="/applicants/:projectId" element={
+                <AuthGuard>
+                  <ApplicantManagePage />
+                </AuthGuard>
+              } />
+              <Route path="/edit-project/:projectId" element={
+                <AuthGuard>
+                  <ProjectEditPage />
                 </AuthGuard>
               } />
             </Routes>
