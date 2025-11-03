@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -80,7 +80,7 @@ export default function ProjectEditPage() {
     }
   }, [projectId, reset]);
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: any) => {
     if (!projectId) return;
     try {
       await updateProject(projectId, data);

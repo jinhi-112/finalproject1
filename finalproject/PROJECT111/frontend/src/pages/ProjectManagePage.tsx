@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getMyProjects, getRecommendedTeammates, deleteProject } from "../api"; // Import deleteProject
 import { useAuth } from "../shared/contexts/AuthContext";
-import { Eye, Settings, Trash2 } from "lucide-react"; // Import Trash2 icon
+import { Settings, Trash2 } from "lucide-react"; // Import Trash2 icon
 import { useNavigate } from "react-router-dom";
 import { RecommendTeammatesModal } from "../features/projects/components/RecommendTeammatesModal";
 

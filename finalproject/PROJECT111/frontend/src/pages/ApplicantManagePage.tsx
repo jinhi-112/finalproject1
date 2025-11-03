@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getApplicantsByProject, updateApplicantStatus } from '@/api';
 import { ArrowLeft } from "lucide-react";
