@@ -1,0 +1,1 @@
+web: cd finalproject/PROJECT111/backend && gunicorn config.wsgi:application
