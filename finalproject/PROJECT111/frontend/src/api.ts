@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: "https://ai-project-matching-9f4105dc2f94.herokuapp.com/api",
 });
 
 // Request: add access token
