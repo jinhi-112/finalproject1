@@ -1,1 +1,1 @@
-web: cd finalproject/PROJECT111/backend && gunicorn config.wsgi:application
+web: PYTHONPATH=finalproject/PROJECT111/backend gunicorn finalproject.PROJECT111.backend.config.wsgi:application
