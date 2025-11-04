@@ -112,6 +112,8 @@ def generate_match_explanation(user_data: dict, project_data: dict, similarity_s
 """
 
     try:
+        logger.info("Attempting to call OpenAI API for match explanation.") # ADDED LOG
+        logger.debug(f"OpenAI Prompt: {prompt[:500]}...") # ADDED LOG (프롬프트가 길 수 있으므로 일부만 로깅)
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -121,10 +123,11 @@ def generate_match_explanation(user_data: dict, project_data: dict, similarity_s
             response_format={"type": "json_object"},
             temperature=0.5
         )
+        logger.info("Successfully received response from OpenAI API.") # ADDED LOG
         result_json = json.loads(response.choices[0].message.content)
         return result_json
     except Exception as e:
-        logger.error(f"Error generating match explanation with OpenAI API: {e}")
+        logger.error(f"Error generating match explanation with OpenAI API: {e}", exc_info=True) # exc_info=True 추가
         return None 
 
 
